@@ -1,0 +1,37 @@
+# docs/specs/question-bank/requirements/cbf-req-2-tag-management.yaml
+requirement:
+  id: REQ-QB-002
+  title: "Tag Organization System"
+  type: functional
+  priority: medium
+
+  # User Story
+  description: |
+    As a Teacher
+    I want to organize Questions using Tags
+    So that I can filter and find questions quickly for exam creation
+
+  # Business Rules
+  business_rules:
+    - id: BR1
+      rule: "Tags are global - shared across all subjects"
+    - id: BR2
+      rule: "Tag name must be unique and 2-20 characters"
+    - id: BR3
+      rule: "Tag can have a parent tag (hierarchical structure)"
+    - id: BR4
+      rule: "Question can have multiple Tags (max 10 per question)"
+    - id: BR5
+      rule: "System provides predefined tags per subject (e.g., 中文: 文言文, 白話文)"
+
+  # Addresses Frame Concerns
+  addresses_concerns:
+    - FC4  # Tag Organization
+
+  # Acceptance Conditions
+  acceptance_conditions:
+    - "AC1: Teacher can create custom tags"
+    - "AC2: Teacher can assign multiple tags to a question"
+    - "AC3: Teacher can filter questions by tag"
+    - "AC4: Teacher can view tag usage statistics"
+    - "AC5: Tags are searchable when creating questions"

@@ -1,0 +1,77 @@
+# docs/specs/question-bank/controlled-domain/tag-aggregate.yaml
+aggregate:
+  name: "Tag"
+  root: true
+
+  # Identity
+  identity:
+    name: "TagId"
+    type: "ObjectId (MongoDB)"
+
+  # Properties
+  properties:
+    - name: "name"
+      type: "string"
+      mutable: true
+
+    - name: "parentId"
+      type: "TagId (nullable)"
+      mutable: true
+
+    - name: "subjectIds"
+      type: "ObjectId[] (nullable)"
+      description: "If set, tag is specific to these subjects. Null = global"
+      mutable: true
+
+    - name: "usageCount"
+      type: "number"
+      description: "Cached count of questions using this tag"
+      mutable: true
+
+    - name: "createdAt"
+      type: "Date"
+      mutable: false
+
+  # Invariants
+  invariants:
+    shared:
+      - id: INV1
+        name: "nameUniqueness"
+        rule: "Tag name must be unique (case-insensitive)"
+        enforced_in:
+          - "constructor"
+          - "method:setName"
+
+      - id: INV2
+        name: "nameLength"
+        rule: "Tag name must be 2-20 characters"
+        enforced_in:
+          - "constructor"
+
+      - id: INV3
+        name: "parentExists"
+        rule: "Parent tag must exist if parentId is set"
+        enforced_in:
+          - "constructor"
+          - "method:setParent"
+
+  # Hierarchical queries
+  hierarchy:
+    max_depth: 3
+    query_support:
+      - "ancestors"
+      - "descendants"
+      - "siblings"
+
+  # Example hierarchy
+  example: |
+    # Flexible hierarchical tags replace rigid Grade→Subject→Unit
+    Tag: 物理學 (root, global)
+      child: 熱學
+        grandchild: 熱力学基础
+      child: 力學
+        grandchild: 牛顿定律
+    Tag: 综合 (root, global)
+      child: 計算題
+      child: 問答題
+    Tag: 文言文 (cross-cutting, can belong to 中文 subject)

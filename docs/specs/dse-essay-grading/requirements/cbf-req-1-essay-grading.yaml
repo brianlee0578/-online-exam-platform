@@ -1,0 +1,64 @@
+# docs/specs/dse-essay-grading/requirements/cbf-req-1-essay-grading.yaml
+requirement:
+  id: REQ-001
+  title: "Student Essay Submission and AI Grading"
+  type: functional
+  priority: high
+
+  # User Story 格式
+  description: |
+    As a DSE Student
+    I want to submit my essay (via text, image, or mobile camera)
+    So that I can receive AI-powered grading feedback within seconds
+
+  # 業務規則
+  business_rules:
+    - id: BR1
+      rule: "Student must be authenticated to submit essay"
+    - id: BR2
+      rule: "Essay content (text) must be between 50 and 5000 characters"
+    - id: BR3
+      rule: "Image upload limited to JPG/PNG format, max 5MB per image, max 3 images"
+    - id: BR4
+      rule: "AI grading must return scores for all configured dimensions for the subject"
+    - id: BR5
+      rule: "AI grading must return a confidence score between 0 and 1"
+
+  # Mobile Upload 業務規則
+  mobile_business_rules:
+    - id: MB1
+      rule: "Mobile web: use device camera via input[capture] attribute
+            iOS Safari and Chrome Android support camera capture directly"
+    - id: MB2
+      rule: "Mobile web: auto-detect device type (mobile/tablet) via userAgent
+            NextRequest.userAgent.device.type for server-side adaptation"
+    - id: MB3
+      rule: "Mobile web: client-side image compression before upload
+            Target: max 1MB per image, quality 0.8, resize to max 2048px longest edge"
+    - id: MB4
+      rule: "Mobile web: EXIF orientation correction for photos taken in portrait mode
+            Handled in browser before upload using canvas transformation"
+    - id: MB5
+      rule: "Mobile web: fallback to photo library if camera access denied
+            input accept='image/*' without capture attribute"
+    - id: MB6
+      rule: "Mobile: handle notch/safe area on iPhone for upload UI
+            Use env(safe-area-inset-*) CSS for padding"
+
+  # 連結到 Frame Concerns
+  addresses_concerns:
+    - FC1  # AI Grading Accuracy
+    - FC2  # OCR Recognition Quality
+    - FC4  # Multi-Subject Support
+
+  # 驗收條件
+  acceptance_conditions:
+    - "AC1: Student can upload essay as text and receive AI grades within 10 seconds"
+    - "AC2: Student can upload essay as images and receive AI grades within 30 seconds"
+    - "AC3: AI grades include dimension scores and feedback for each grading dimension"
+    - "AC4: AI grades include overall total score and confidence score"
+    - "AC5: Essays with confidence < 0.6 are flagged for teacher review"
+    - "AC6: Student can view their essay status (pending/ai_graded/teacher_reviewed/returned)"
+    - "AC7: Mobile: Student can capture photo directly from device camera"
+    - "AC8: Mobile: Photo auto-compressed before upload (max 1MB)"
+    - "AC9: Mobile: Portrait photos display correctly (EXIF orientation fixed)"

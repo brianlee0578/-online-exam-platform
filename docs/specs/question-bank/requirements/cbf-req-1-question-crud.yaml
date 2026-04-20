@@ -1,0 +1,59 @@
+# docs/specs/question-bank/requirements/cbf-req-1-question-crud.yaml
+requirement:
+  id: REQ-QB-001
+  title: "Teacher Question CRUD Operations"
+  type: functional
+  priority: high
+
+  # User Story
+  description: |
+    As a Teacher
+    I want to create, read, update, and delete Questions
+    So that I can build and maintain a question bank for assessments
+
+  # Business Rules
+  business_rules:
+    - id: BR1
+      rule: "Teacher must have 'question:write' permission_code to create/edit questions"
+    - id: BR2
+      rule: "Question content is required and must be between 5 and 5000 characters"
+    - id: BR3
+      rule: "Each Question must belong to exactly one Unit (which belongs to a Subject and Grade)"
+    - id: BR4
+      rule: "Question must have at least one Tag"
+    - id: BR5
+      rule: "Difficulty must be integer 1-5 (1=easy, 5=hard)"
+    - id: BR6
+      rule: "Question options (for choice questions) must have at least 2 options"
+    - id: BR7
+      rule: "Standard Answer (標準答案) is REQUIRED for all questions - prevents AI hallucination"
+    - id: BR8
+      rule: "Scoring Criteria (評分標準) is REQUIRED - must specify points per part"
+    - id: BR9
+      rule: "Standard Answer must include acceptable variants and format rules"
+    - id: BR10
+      rule: "Common mistakes list must be provided to reduce AI hallucination"
+
+  # Addresses Frame Concerns
+  addresses_concerns:
+    - FC1  # Question Data Integrity
+    - FC3  # Multi-Question Type Support
+    - FC5  # Difficulty Calibration
+    - FC6  # Hierarchical Curriculum Structure (Grade→Subject→Unit)
+    - FC7  # Standardized Scoring Criteria
+    - FC8  # Standard Answer for AI Compliance
+
+  # Acceptance Conditions
+  acceptance_conditions:
+    - "AC1: Teacher can create single choice question with 4 options and 1 correct answer"
+    - "AC2: Teacher can create multiple choice question with multiple correct answers"
+    - "AC3: Teacher can create essay question with scoring rubric"
+    - "AC4: Teacher can create math question with KaTeX formula rendering"
+    - "AC5: Teacher can create physics question under Grade=F.5, Subject=物理學, Unit=熱學"
+    - "AC6: Standard Answer is mandatory field - cannot save question without it"
+    - "AC7: Scoring Criteria specifies exact points per sub-question (e.g., part a: 5pts, part b: 10pts)"
+    - "AC8: Standard Answer includes acceptable variants (e.g., ['OK', 'O', '正確'])"
+    - "AC9: Format rules specify unit required, precision (e.g., '2 decimal places')"
+    - "AC10: Teacher can update existing question (creates new version)"
+    - "AC11: Teacher can delete question (soft delete, preserves history)"
+    - "AC12: Question history with standard answer and scoring criteria is preserved"

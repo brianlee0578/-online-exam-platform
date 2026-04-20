@@ -1,0 +1,87 @@
+# docs/specs/dse-essay-grading/machine/review-use-case.yaml
+use_case:
+  name: "TeacherReviewUseCase"
+  type: command
+
+  # Input/Output 定義
+  input:
+    name: "TeacherReviewInput"
+    fields:
+      - name: "essayId"
+        type: "string (ObjectId)"
+        required: true
+        validation: "ObjectId format"
+
+      - name: "action"
+        type: "string (approved|modified|returned)"
+        required: true
+        validation: "enum"
+
+      - name: "modifiedScores"
+        type: "DimensionScore[] (optional)"
+        required: false
+        validation: "if action=modified, must provide scores"
+
+      - name: "feedback"
+        type: "string (optional)"
+        required: false
+        validation: "if action=returned, required"
+
+  output:
+    name: "TeacherReviewOutput"
+    fields:
+      - name: "reviewId"
+        type: "string"
+
+      - name: "essayId"
+        type: "string"
+
+      - name: "action"
+        type: "string"
+
+      - name: "finalScores"
+        type: "DimensionScore[]"
+
+      - name: "reviewedAt"
+        type: "Date"
+
+  # Design by Contract
+  contracts:
+    pre_conditions:
+      - id: PRE1
+        condition: "Teacher has 'review_essay' permission"
+        error: "PERMISSION_DENIED"
+
+      - id: PRE2
+        condition: "Essay status is 'pending_review' or 'ai_graded'"
+        error: "INVALID_STATUS"
+
+      - id: PRE3
+        condition: "If action='returned', feedback must be provided"
+        error: "FEEDBACK_REQUIRED"
+
+    post_conditions:
+      - id: POST1
+        condition: "TeacherReview record created"
+
+      - id: POST2
+        condition: "Essay status updated to 'teacher_reviewed' or 'returned'"
+
+      - id: POST3
+        condition: "If action='modified', AIGrade.original_scores preserved"
+
+      - id: POST4
+        condition: "Event TeacherReviewCompletedEvent published"
+
+  # 技術約束
+  transaction_boundary:
+    type: "RequiresNew"
+    isolation: "ReadCommitted"
+
+  idempotency:
+    enabled: true
+    key: "essayId+teacherId"
+
+  # 發布的 Domain Events
+  publishes_events:
+    - "TeacherReviewCompletedEvent"

@@ -1,0 +1,104 @@
+# docs/specs/question-bank/machine/controller.yaml
+controller:
+  name: "QuestionController"
+  type: "REST API Route Handler"
+
+  # API Endpoints
+  routes:
+    # Question CRUD
+    - method: "POST"
+      path: "/api/questions"
+      handler: "createQuestion"
+      auth: "jwt_required (teacher role)"
+      input: "CreateQuestionInput"
+      output: "QuestionOutput"
+
+    - method: "GET"
+      path: "/api/questions"
+      handler: "listQuestions"
+      auth: "jwt_required"
+      input: "QuestionQueryInput"
+      output: "QuestionListOutput"
+
+    - method: "GET"
+      path: "/api/questions/:id"
+      handler: "getQuestion"
+      auth: "jwt_required"
+      input: "null"
+      output: "QuestionDetailOutput"
+
+    - method: "PUT"
+      path: "/api/questions/:id"
+      handler: "updateQuestion"
+      auth: "jwt_required (teacher role)"
+      input: "UpdateQuestionInput"
+      output: "QuestionOutput"
+
+    - method: "DELETE"
+      path: "/api/questions/:id"
+      handler: "deleteQuestion"
+      auth: "jwt_required (teacher role)"
+      input: "null"
+      output: "DeleteOutput"
+
+    # Question Versions
+    - method: "GET"
+      path: "/api/questions/:id/versions"
+      handler: "getQuestionVersions"
+      auth: "jwt_required"
+      input: "null"
+      output: "QuestionVersionListOutput"
+
+    # Tags
+    - method: "GET"
+      path: "/api/tags"
+      handler: "listTags"
+      auth: "jwt_required"
+      input: "TagQueryInput"
+      output: "TagListOutput"
+
+    - method: "POST"
+      path: "/api/tags"
+      handler: "createTag"
+      auth: "jwt_required (teacher role)"
+      input: "CreateTagInput"
+      output: "TagOutput"
+
+    - method: "PUT"
+      path: "/api/tags/:id"
+      handler: "updateTag"
+      auth: "jwt_required (teacher role)"
+      input: "UpdateTagInput"
+      output: "TagOutput"
+
+    - method: "DELETE"
+      path: "/api/tags/:id"
+      handler: "deleteTag"
+      auth: "jwt_required (admin)"
+      input: "null"
+      output: "DeleteOutput"
+
+  # Middleware
+  middleware:
+    - "authenticateJWT"
+    - "rateLimiter"  # 100 req/min per user
+    - "validateInput"  # Zod schema validation
+    - "errorHandler"
+
+  # Question type handlers
+  question_type_handlers:
+    - type: "single_choice"
+      options: 4
+      correct_answer: 1
+    - type: "multiple_choice"
+      options: 4-8
+      correct_answers: "1+"
+    - type: "true_false"
+      options: 2
+      correct_answer: 1
+    - type: "fill_blank"
+      accepted_answers: "1+"
+    - type: "essay"
+      has_rubric: true
+    - type: "math"
+      latex: true

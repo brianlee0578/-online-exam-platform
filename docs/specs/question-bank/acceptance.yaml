@@ -1,0 +1,112 @@
+# docs/specs/question-bank/acceptance.yaml
+acceptance:
+  version: "1.0.0"
+  feature: "Question Bank Management (試題庫)"
+  created_at: "2026-04-20"
+
+  # Test scenarios
+  scenarios:
+    - id: "ASC-QB-001"
+      title: "Teacher creates single choice question"
+      given:
+        - "Teacher is authenticated with question:write permission"
+        - "Subject 'chinese' exists"
+        - "Tag '文言文' exists"
+      when:
+        - "Teacher submits question with type=single_choice, 4 options"
+      then:
+        - "Question created with version=1"
+        - "QuestionVersion record created"
+        - "Question appears in list"
+
+    - id: "ASC-QB-002"
+      title: "Teacher creates math question with KaTeX"
+      given:
+        - "Teacher is authenticated"
+        - "Subject 'mathematics' exists"
+      when:
+        - "Teacher submits math question with LaTeX formula"
+      then:
+        - "LaTeX renders correctly in preview"
+        - "Correct answer validated as formula"
+
+    - id: "ASC-QB-003"
+      title: "Teacher updates question creates new version"
+      given:
+        - "Question exists with version=1"
+      when:
+        - "Teacher updates difficulty from 3 to 4"
+      then:
+        - "New version=2 created"
+        - "Version 1 preserved in history"
+        - "QuestionVersion shows previous state"
+
+    - id: "ASC-QB-004"
+      title: "Teacher soft deletes question"
+      given:
+        - "Question exists and is used in no active exams"
+      when:
+        - "Teacher deletes question"
+      then:
+        - "Question.isDeleted = true"
+        - "Question no longer appears in search"
+        - "History still accessible"
+
+    - id: "ASC-QB-005"
+      title: "Teacher searches questions by content"
+      given:
+        - "Multiple questions exist"
+      when:
+        - "Teacher searches '孫子兵法'"
+      then:
+        - "All questions containing '孫子兵法' returned"
+        - "Results paginated"
+
+    - id: "ASC-QB-006"
+      title: "Teacher filters by subject and tags"
+      given:
+        - "Questions exist across subjects"
+      when:
+        - "Teacher filters: Subject=中文, Tags=[文言文,作文技巧]"
+      then:
+        - "Only Chinese questions with both tags returned"
+
+    - id: "ASC-QB-007"
+      title: "Teacher creates hierarchical tag"
+      given:
+        - "Tag '作文' exists"
+      when:
+        - "Teacher creates tag '議論文' with parent='作文'"
+      then:
+        - "Tag hierarchy created"
+        - "Both tags queryable"
+
+    - id: "ASC-QB-008"
+      title: "Question without valid subject rejected"
+      given:
+        - "Subject 'chemistry' is inactive"
+      when:
+        - "Teacher tries to create question for 'chemistry'"
+      then:
+        - "Error: SUBJECT_NOT_FOUND"
+        - "Question not created"
+
+    - id: "ASC-QB-009"
+      title: "Teacher creates multiple choice with multiple correct answers"
+      given:
+        - "Teacher is authenticated"
+      when:
+        - "Teacher creates multiple_choice with correct=[A,C]"
+      then:
+        - "Question accepts multiple correct answers"
+        - "Scoring handles partial credit"
+
+    - id: "ASC-QB-010"
+      title: "Tag usage count updated"
+      given:
+        - "Tag has usageCount=5"
+        - "Question with this tag is deleted"
+      when:
+        - "Delete completes"
+      then:
+        - "Tag.usageCount decremented to 4"

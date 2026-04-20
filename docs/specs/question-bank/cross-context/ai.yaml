@@ -1,0 +1,139 @@
+# docs/specs/question-bank/cross-context/ai.yaml
+cross_context:
+  name: "AI Question Grading with Standard Answer Compliance"
+  type: "External AI Service (Anti-Corruption Layer)"
+
+  # Interface
+  interface_type: "OpenAI Chat Completion API"
+
+  # AI Grading Compliance Rules (CRITICAL - prevents hallucinations)
+  ai_grading_rules: |
+    MANDATORY COMPLIANCE:
+    1. AI MUST extract and follow Question.standardAnswer exactly
+    2. AI MUST use Question.scoringCriteria for point allocation
+    3. AI MUST check acceptableVariants before marking wrong
+    4. AI MUST apply formatRules (unit, precision, case)
+    5. AI MUST NOT guess or hallucinate answers
+
+    PROHIBITED:
+    - AI MUST NOT invent answers not in standardAnswer
+    - AI MUST NOT ignore format rules
+    - AI MUST NOT exceed totalPoints allocation
+
+  # Operations
+  operations:
+    - name: "gradeQuestion"
+      description: "AI grades student answer following standard answer + scoring criteria"
+      input:
+        name: "GradeQuestionInput"
+        fields:
+          - name: "questionId"
+            type: "string"
+          - name: "studentAnswer"
+            type: "string"
+          - name: "standardAnswer"
+            type: "StandardAnswer"
+          - name: "scoringCriteria"
+            type: "ScoringCriteria"
+          - name: "strictMode"
+            type: "boolean"
+            description: "If true, reject answers not matching acceptableVariants exactly"
+      output:
+        name: "GradeOutput"
+        fields:
+          - name: "isCorrect"
+            type: "boolean"
+          - name: "score"
+            type: "number"
+          - name: "maxScore"
+            type: "number"
+          - name: "feedback"
+            type: "string"
+          - name: "partScores"
+            type: "PartScore[]"
+          - name: "complianceStatus"
+            type: "string"
+            description: "COMPLIANT|VIOLATION - did AI follow standard answer rules"
+      error_handling:
+        - code: "no_standard_answer"
+          strategy: "reject grading, return error"
+        - code: "ai_hallucination_detected"
+          strategy: "flag as violation, reduce confidence score"
+
+    - name: "validateAnswer"
+      description: "Validate student answer against standard answer rules (before AI grading)"
+      input:
+        name: "ValidateAnswerInput"
+        fields:
+          - name: "studentAnswer"
+            type: "string"
+          - name: "standardAnswer"
+            type: "StandardAnswer"
+      output:
+        name: "ValidateAnswerOutput"
+        fields:
+          - name: "isExactMatch"
+            type: "boolean"
+          - name: "isAcceptable"
+            type: "boolean"
+          - name: "matchedVariant"
+            type: "string (nullable)"
+          - name: "formatViolations"
+            type: "string[]"
+
+    - name: "generateQuestion"
+      description: "AI generates question suggestions from topic text"
+      input:
+        name: "GenerateQuestionInput"
+        fields:
+          - name: "topic"
+            type: "string"
+          - name: "unitId"
+            type: "string"
+          - name: "questionType"
+            type: "string"
+          - name: "count"
+            type: "number (1-5)"
+      output:
+        name: "GenerateQuestionOutput"
+        fields:
+          - name: "questions"
+            type: "GeneratedQuestion[]"
+          - name: "confidence"
+            type: "number"
+      error_handling:
+        - code: "content_policy_violation"
+          strategy: "return empty with message"
+        - code: "rate_limit"
+          strategy: "retry with backoff"
+
+    - name: "suggestDifficulty"
+      description: "AI suggests difficulty based on question content and historical data"
+      input:
+        name: "SuggestDifficultyInput"
+        fields:
+          - name: "questionContent"
+            type: "string"
+          - name: "unitId"
+            type: "string"
+          - name: "historicalPerformance"
+            type: "number[] (optional)"
+      output:
+        name: "SuggestDifficultyOutput"
+        fields:
+          - name: "suggestedDifficulty"
+            type: "number (1-5)"
+          - name: "reasoning"
+            type: "string"
+
+  # Hallucination Prevention
+  hallucination_prevention:
+    enabled: true
+    checks:
+      - name: "answer_invariants"
+        description: "Student answer must match at least one acceptable variant"
+      - name: "format_compliance"
+        description: "Student answer must follow format rules (unit, precision)"
+      - name: "no_out-of-scope"
+        description: "AI grader must not reference knowledge outside question context"
+    penalty: "If hallucination detected, reduce confidence by 50% and flag for human review"

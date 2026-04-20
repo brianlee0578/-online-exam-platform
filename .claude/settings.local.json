@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git ls-tree:*)",
+      "Bash(git submodule:*)",
+      "Bash(find /Users/leebrian/Documents/GitHub/-online-exam-platform -type f -name *.java)",
+      "Bash(find /Users/leebrian/Documents/GitHub/-online-exam-platform -type f -name *.vue)",
+      "Bash(find /Users/leebrian/Documents/GitHub/-online-exam-platform -type f \\\\\\(-name *.java -o -name *.xml -o -name *.yml -o -name *.yaml \\\\\\))",
+      "WebSearch",
+      "mcp__plugin_context7_context7__resolve-library-id",
+      "mcp__plugin_context7_context7__query-docs"
+    ]
+  }
+}

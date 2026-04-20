@@ -1,0 +1,88 @@
+# docs/specs/dse-essay-grading/machine/use-case.yaml
+use_case:
+  name: "GradeEssayUseCase"
+  type: command
+
+  # Input/Output 定義
+  input:
+    name: "GradeEssayInput"
+    fields:
+      - name: "essayId"
+        type: "string (ObjectId)"
+        required: true
+        validation: "ObjectId format"
+
+      - name: "subject"
+        type: "string (chinese|english|mathematics)"
+        required: true
+        validation: "enum"
+
+      - name: "contentText"
+        type: "string"
+        required: true
+        validation: "length: 50-5000 chars"
+
+  output:
+    name: "GradeEssayOutput"
+    fields:
+      - name: "essayId"
+        type: "string"
+
+      - name: "grades"
+        type: "DimensionGrade[]"
+
+      - name: "totalScore"
+        type: "number (0-100)"
+
+      - name: "confidence"
+        type: "number (0-1)"
+
+      - name: "status"
+        type: "string (ai_graded|pending_review)"
+
+  # Design by Contract
+  contracts:
+    pre_conditions:
+      - id: PRE1
+        condition: "Essay exists and belongs to authenticated student"
+        error: "UNAUTHORIZED"
+
+      - id: PRE2
+        condition: "Subject is active in system"
+        error: "SUBJECT_NOT_FOUND"
+
+      - id: PRE3
+        condition: "Content text passes minimum length validation"
+        error: "CONTENT_TOO_SHORT"
+
+    post_conditions:
+      - id: POST1
+        condition: "AIGrade record created for essay"
+
+      - id: POST2
+        condition: "Essay status updated to ai_graded or pending_review based on confidence"
+
+      - id: POST3
+        condition: "Event EssayGradedEvent published"
+
+  # 技術約束
+  transaction_boundary:
+    type: "RequiresNew"
+    isolation: "ReadCommitted"
+
+  idempotency:
+    enabled: true
+    key: "essayId"
+
+  # 發布的 Domain Events
+  publishes_events:
+    - "AIGradingCompletedEvent"
+
+  # Grading confidence check (satisfies FC1)
+  grading_confidence_check: |
+    if (confidence > 0.85):
+      status = "ai_graded"  # auto-approved
+    elif (confidence < 0.6):
+      status = "pending_review"  # requires teacher
+    else:
+      status = "ai_graded"  # AI graded, for reference only

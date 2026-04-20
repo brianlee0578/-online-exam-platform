@@ -1,0 +1,30 @@
+# docs/specs/dse-essay-grading/machine/machine.yaml
+machine:
+  name: "DSEGradingMachine"
+
+  # Machine components
+  components:
+    - name: "EssayController"
+      type: "API Endpoint"
+      spec: machine/controller.yaml
+
+    - name: "GradingUseCase"
+      type: "Application Service"
+      spec: machine/use-case.yaml
+
+    - name: "ReviewUseCase"
+      type: "Application Service"
+      spec: machine/review-use-case.yaml
+
+  # State machine for Essay status
+  status_flow: |
+    pending → ai_graded → teacher_reviewed
+                   ↓              ↓
+              returned ←←←←←←←←←←
+
+  # Domain events published
+  publishes_events:
+    - "EssaySubmittedEvent"
+    - "AIGradingCompletedEvent"
+    - "TeacherReviewCompletedEvent"
+    - "EssayReturnedEvent"

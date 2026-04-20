@@ -1,0 +1,273 @@
+# docs/specs/question-bank/controlled-domain/aggregate.yaml
+aggregate:
+  name: "Question"
+  root: true
+
+  # Identity
+  identity:
+    name: "QuestionId"
+    type: "ObjectId (MongoDB)"
+
+  # Properties
+  properties:
+    - name: "gradeId"
+      type: "ObjectId"
+      description: "分級: F.1-F.6 (中一至中六) - loose coupling"
+      mutable: false
+
+    - name: "subjectId"
+      type: "ObjectId"
+      description: "科目: 物理學, 化學, etc. - loose coupling"
+      mutable: false
+
+    - name: "questionType"
+      type: "QuestionType (Value Object)"
+      mutable: false
+
+    - name: "content"
+      type: "string"
+      mutable: true
+
+    - name: "options"
+      type: "QuestionOption[]"
+      mutable: true
+
+    - name: "standardAnswer"
+      type: "StandardAnswer (embedded)"
+      description: "標準答案 - AI must follow exactly"
+      mutable: true
+
+    - name: "scoringCriteria"
+      type: "ScoringCriteria (embedded)"
+      description: "評分標準 - points per part, partial credit rules"
+      mutable: true
+
+    - name: "difficulty"
+      type: "number (1-5)"
+      mutable: true
+
+    - name: "tagIds"
+      type: "ObjectId[]"
+      description: "Tags for categorization - flexible, hierarchical, cross-cutting"
+      mutable: true
+
+    - name: "isDeleted"
+      type: "boolean"
+      mutable: true
+
+    - name: "createdBy"
+      type: "ObjectId"
+      mutable: false
+
+    - name: "createdAt"
+      type: "Date"
+      mutable: false
+
+    - name: "updatedAt"
+      type: "Date"
+      mutable: true
+
+  # Value Objects
+  value_objects:
+    - name: "QuestionType"
+      properties:
+        - name: "value"
+          type: "string"
+          allowed_values:
+            - "single_choice"     # 單選題
+            - "multiple_choice"    # 多選題
+            - "true_false"        # 判斷題
+            - "fill_blank"        # 填空題
+            - "essay"             # 問答題
+            - "calculation"       # 計算題
+
+    - name: "QuestionOption"
+      properties:
+        - name: "id"
+          type: "string (A|B|C|D|E|F|G|H)"
+        - name: "content"
+          type: "string"
+        - name: "isCorrect"
+          type: "boolean"
+
+    - name: "StandardAnswer"
+      description: "標準答案 - AI grader MUST follow exactly"
+      properties:
+        - name: "exactAnswer"
+          type: "string"
+          description: "唯一標準答案"
+        - name: "acceptableVariants"
+          type: "string[]"
+          description: "可接受的其他答案形式 (e.g., ['OK', 'True', '正確'])"
+
+        - name: "formatRules"
+          type: "FormatRules"
+          description: "格式規則防止AI幻觉"
+          properties:
+            - name: "caseSensitive"
+              type: "boolean"
+            - name: "trimSpaces"
+              type: "boolean"
+            - name: "unitRequired"
+              type: "boolean"
+              description: "答題必須包含單位 (e.g., 'm/s', 'kg')"
+            - name: "precision"
+              type: "number (decimal places)"
+            - name: "allowLatex"
+              type: "boolean"
+              description: "是否允許LaTeX格式答案"
+
+        - name: "commonMistakes"
+          type: "string[]"
+          description: "常見錯誤提示AI注意 (reduces hallucination)"
+
+    - name: "ScoringCriteria"
+      description: "評分標準 - explicit point allocation"
+      properties:
+        - name: "totalPoints"
+          type: "number"
+        - name: "parts"
+          type: "ScoringPart[]"
+          description: "每小題分值"
+        - name: "partialCredit"
+          type: "PartialCreditRule[]"
+          description: "部分得分規則"
+
+    - name: "ScoringPart"
+      properties:
+        - name: "partId"
+          type: "string (a|b|c)"
+        - name: "description"
+          type: "string"
+        - name: "maxPoints"
+          type: "number"
+        - name: "keywords"
+          type: "string[]"
+          description: "關鍵詞 - 必須出現才得分"
+
+    - name: "PartialCreditRule"
+      properties:
+        - name: "condition"
+          type: "string"
+          description: "e.g., 'hasUnitButWrongValue'"
+        - name: "partialPoints"
+          type: "number"
+        - name: "description"
+          type: "string"
+
+  # Entities
+  entities:
+    - name: "QuestionVersion"
+      identity: "QuestionVersionId"
+      properties:
+        - name: "questionId"
+          type: "ObjectId"
+        - name: "version"
+          type: "number"
+        - name: "standardAnswer"
+          type: "StandardAnswer"
+        - name: "scoringCriteria"
+          type: "ScoringCriteria"
+        - name: "changedBy"
+          type: "ObjectId"
+        - name: "changedAt"
+          type: "Date"
+        - name: "changeReason"
+          type: "string"
+
+  # Invariants
+  invariants:
+    shared:
+      - id: INV1
+        name: "tagReferenceLoose"
+        rule: "Question must have at least one Tag. Tags are flexible, no cascade delete."
+        enforced_in:
+          - "constructor"
+          - "method:addTag"
+        note: "Tags are soft references - if Tag deleted, questions remain but untagged"
+
+      - id: INV2
+        name: "standardAnswerRequired"
+        rule: "All questions MUST have StandardAnswer (prevents AI hallucination)"
+        enforced_in:
+          - "constructor"
+          - "method:setStandardAnswer"
+        note: "No question can exist without explicit answer"
+
+      - id: INV3
+        name: "scoringCriteriaRequired"
+        rule: "All questions MUST have ScoringCriteria with explicit point allocation"
+        enforced_in:
+          - "constructor"
+          - "method:setScoringCriteria"
+
+      - id: INV4
+        name: "difficultyRange"
+        rule: "Difficulty must be integer 1-5"
+        enforced_in:
+          - "constructor"
+
+      - id: INV5
+        name: "optionsForChoice"
+        rule: "Choice questions must have 2-8 options with exactly 1+ correct"
+        enforced_in:
+          - "constructor"
+
+  # Domain Events
+  domain_events:
+    - name: "QuestionCreatedEvent"
+      properties:
+        - name: "questionId"
+          type: "ObjectId"
+        - name: "subjectId"
+          type: "ObjectId"
+        - name: "createdBy"
+          type: "ObjectId"
+
+    - name: "QuestionUpdatedEvent"
+      properties:
+        - name: "questionId"
+          type: "ObjectId"
+        - name: "version"
+          type: "number"
+
+    - name: "QuestionDeletedEvent"
+      properties:
+        - name: "questionId"
+          type: "ObjectId"
+
+  # AI Compliance Rules (satisfies FC7, FC8)
+  ai_compliance:
+    standard_answer_enforcement: |
+      AI Grader MUST:
+      1. Extract StandardAnswer.exactAnswer as primary answer
+      2. Check against acceptableVariants (case-insensitive if configured)
+      3. Validate FormatRules (unit, precision, case)
+      4. If answer matches → mark correct
+      5. If answer does NOT match ANY variant → flag REQUIRES_HUMAN_REVIEW
+      6. NEVER guess or hallucinate - explicit "no match" state required
+
+    scoring_enforcement: |
+      AI Grader MUST:
+      1. Use ScoringCriteria.parts to allocate points per section
+      2. Check keywords presence for each ScoringPart
+      3. Apply PartialCreditRules for partial matches
+      4. Never exceed totalPoints
+      5. Provide detailed feedback per part
+
+    # Explicit fallback to human review
+    human_review_trigger: |
+      AI Grading returns REQUIRES_HUMAN_REVIEW when:
+      1. Student answer matches no acceptable variant
+      2. Format rules violated (but answer might be correct concept)
+      3. Partial credit ambiguous
+      4. confidence < 0.6
+      Human reviewer makes final decision.
+
+  # Versioning policy
+  versioning_policy: |
+    On update:
+    1. Current state saved to QuestionVersion (including standardAnswer + scoringCriteria)
+    2. New version number = old version + 1
+    3. Version history retained indefinitely
+    4. Soft delete preserves all versions

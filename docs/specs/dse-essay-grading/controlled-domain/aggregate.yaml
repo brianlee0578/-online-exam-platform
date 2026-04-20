@@ -1,0 +1,154 @@
+# docs/specs/dse-essay-grading/controlled-domain/aggregate.yaml
+aggregate:
+  name: "Essay"
+  root: true
+
+  # 身份識別
+  identity:
+    name: "EssayId"
+    type: "ObjectId (MongoDB)"
+
+  # 屬性
+  properties:
+    - name: "studentId"
+      type: "ObjectId"
+      mutable: false
+
+    - name: "subject"
+      type: "string (chinese|english|mathematics)"
+      mutable: false
+
+    - name: "contentText"
+      type: "string"
+      mutable: true
+
+    - name: "contentImageUrls"
+      type: "string[]"
+      mutable: true
+
+    - name: "status"
+      type: "EssayStatus"
+      mutable: true
+
+    - name: "createdAt"
+      type: "Date"
+      mutable: false
+
+    - name: "updatedAt"
+      type: "Date"
+      mutable: true
+
+  # Value Objects
+  value_objects:
+    - name: "EssayStatus"
+      properties:
+        - name: "value"
+          type: "string"
+          allowed_values:
+            - "pending"
+            - "ai_graded"
+            - "pending_review"
+            - "teacher_reviewed"
+            - "returned"
+
+    - name: "DimensionScore"
+      properties:
+        - name: "dimension"
+          type: "string"
+        - name: "score"
+          type: "number (0-100)"
+        - name: "feedback"
+          type: "string"
+
+  # Invariants（不變量）
+  invariants:
+    shared:
+      - id: INV1
+        name: "confidenceThreshold"
+        rule: "AIGrade confidence must be between 0 and 1"
+        enforced_in:
+          - "constructor"
+          - "method:setAIGrade"
+
+      - id: INV2
+        name: "statusTransitions"
+        rule: "Status can only transition: pending→ai_graded, ai_graded→pending_review, pending_review→teacher_reviewed, ai_graded→returned, pending_review→returned"
+        enforced_in:
+          - "method:transitionStatus"
+
+      - id: INV3
+        name: "reviewStateMachine"
+        rule: "Essay must have AIGrade before TeacherReview can be created"
+        enforced_in:
+          - "method:createReview"
+
+      - id: INV4
+        name: "contentNotEmpty"
+        rule: "Either contentText or contentImageUrls must be present"
+        enforced_in:
+          - "constructor"
+
+  # 內部 Entities
+  entities:
+    - name: "AIGrade"
+      identity: "AIGradeId"
+      properties:
+        - name: "essayId"
+          type: "ObjectId"
+        - name: "dimensions"
+          type: "DimensionScore[]"
+        - name: "totalScore"
+          type: "number"
+        - name: "confidence"
+          type: "number (0-1)"
+        - name: "model"
+          type: "string"
+        - name: "gradedAt"
+          type: "Date"
+
+    - name: "TeacherReview"
+      identity: "TeacherReviewId"
+      properties:
+        - name: "essayId"
+          type: "ObjectId"
+        - name: "teacherId"
+          type: "ObjectId"
+        - name: "action"
+          type: "string"
+        - name: "originalScores"
+          type: "DimensionScore[] (nullable)"
+        - name: "finalScores"
+          type: "DimensionScore[]"
+        - name: "feedback"
+          type: "string"
+        - name: "reviewedAt"
+          type: "Date"
+
+  # Domain Events
+  domain_events:
+    - name: "EssaySubmittedEvent"
+      properties:
+        - name: "essayId"
+          type: "ObjectId"
+        - name: "studentId"
+          type: "ObjectId"
+        - name: "subject"
+          type: "string"
+
+    - name: "AIGradingCompletedEvent"
+      properties:
+        - name: "essayId"
+          type: "ObjectId"
+        - name: "totalScore"
+          type: "number"
+        - name: "confidence"
+          type: "number"
+
+    - name: "TeacherReviewCompletedEvent"
+      properties:
+        - name: "essayId"
+          type: "ObjectId"
+        - name: "teacherId"
+          type: "ObjectId"
+        - name: "action"
+          type: "string"

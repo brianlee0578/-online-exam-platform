@@ -1,0 +1,32 @@
+# docs/specs/question-bank/machine/machine.yaml
+machine:
+  name: "QuestionBankMachine"
+
+  # Machine components
+  components:
+    - name: "QuestionController"
+      type: "API Endpoint"
+      spec: machine/controller.yaml
+
+    - name: "CreateQuestionUseCase"
+      type: "Application Service"
+      spec: machine/use-case.yaml
+
+    - name: "UpdateQuestionUseCase"
+      type: "Application Service"
+      spec: machine/update-use-case.yaml
+
+    - name: "QueryQuestionUseCase"
+      type: "Query Service"
+      spec: machine/query-use-case.yaml
+
+    - name: "TagUseCase"
+      type: "Application Service"
+      spec: machine/tag-use-case.yaml
+
+  # Domain events published
+  publishes_events:
+    - "QuestionCreatedEvent"
+    - "QuestionUpdatedEvent"
+    - "QuestionDeletedEvent"
+    - "TagCreatedEvent"

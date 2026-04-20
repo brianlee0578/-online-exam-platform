@@ -1,0 +1,160 @@
+# docs/specs/question-bank/frame.yaml
+problem_frame: "Question Bank Management (試題庫)"
+frame_type: CommandedBehaviorFrame
+
+intent: |
+  When a Teacher creates, updates, or organizes Questions, the Machine shall
+  manage the question repository and support Exam creation, so that Questions
+  can be reused across Exams and Students can be assessed fairly.
+
+# ---------------------------------------------------------------------------
+# Problem Frame Components (from README: exam-question microservice)
+# ---------------------------------------------------------------------------
+
+operator:
+  name: "Teacher"
+  description: "Educator who creates and manages questions for student assessment"
+
+machine:
+  name: "QuestionBankMachine"
+  machine_spec: machine/machine.yaml
+
+controlled_domain:
+  domain: "AssessmentDomain"
+  entity: "Question (Aggregate Root)"
+  aggregate_spec: controlled-domain/aggregate.yaml
+
+# ---------------------------------------------------------------------------
+# Frame Concerns
+# ---------------------------------------------------------------------------
+
+frame_concerns:
+  - id: FC1
+    name: "Question Data Integrity"
+    description: |
+      Questions must maintain referential integrity with Tags.
+      Tags are loose references - if Tag deleted, questions remain but untaggable.
+      Tags are hierarchical (parent/child) for flexible categorization.
+    satisfied_by:
+      - controlled-domain/aggregate.yaml#invariants.tagReferenceLoose
+      - controlled-domain/tag-aggregate.yaml
+
+  - id: FC2
+    name: "Question Versioning"
+    description: |
+      Question updates should preserve history for audit.
+      Teachers can view previous versions.
+    satisfied_by:
+      - controlled-domain/aggregate.yaml#entities.QuestionVersion
+      - machine/use-case.yaml#versioning_policy
+
+  - id: FC3
+    name: "Multi-Question Type Support"
+    description: |
+      System shall support various question types:
+      - Single Choice (單選題)
+      - Multiple Choice (多選題)
+      - True/False (判斷題)
+      - Fill-in-Blank (填空題)
+      - Essay (問答題)
+      - Math/Formula (計算題 with KaTeX rendering)
+    satisfied_by:
+      - controlled-domain/aggregate.yaml#valueObjects.QuestionType
+      - machine/controller.yaml#question_type_handlers
+
+  - id: FC4
+    name: "Tag Organization"
+    description: |
+      Questions can be tagged for organization and filtering.
+      Tags are shared across subjects (e.g., "文言文", "作文技巧").
+    satisfied_by:
+      - controlled-domain/aggregate.yaml#entities.Tag
+      - machine/use-case.yaml#tag_filtering
+
+  - id: FC5
+    name: "Difficulty Calibration"
+    description: |
+      Questions have difficulty levels (1-5) for smart paper generation.
+      AI can suggest difficulty based on historical performance data.
+    satisfied_by:
+      - controlled-domain/aggregate.yaml#properties.difficulty
+      - cross-context/ai.yaml#difficulty_suggestion
+
+  - id: FC6
+    name: "Flexible Tag-Based Organization"
+    description: |
+      分類使用 Tags (標籤) 而非固定階層:
+      - Tags 是靈活的、可層級化的 (parent/child)
+      - Questions 可擁有多個 Tags
+      - 例如: 物理學.熱學, 物理學.力學, 综合.計算題
+      - SubjectId 仍存在 (用於基本分類), 但非強制階層
+      - 避免 cascade delete 問題
+    satisfied_by:
+      - controlled-domain/aggregate.yaml#invariants.tagReferenceLoose
+      - controlled-domain/tag-aggregate.yaml#hierarchy
+
+  - id: FC7
+    name: "Standardized Scoring Criteria"
+    description: |
+      Questions must have explicit scoring criteria (評分標準) for:
+      - Point allocation per sub-question/part
+      - Partial credit rules
+      - Common mistakes and penalty guidelines
+      AI grader MUST follow these criteria to avoid hallucinations.
+    satisfied_by:
+      - controlled-domain/aggregate.yaml#entities.ScoringCriteria
+      - machine/use-case.yaml#scoring_enforcement
+
+  - id: FC8
+    name: "Standard Answer for AI Compliance"
+    description: |
+      Questions must have standard answer (標準答案) that:
+      - AI grader MUST follow exactly
+      - Includes acceptable answer variations
+      - Specifies units, precision, formatting rules
+      - Reduces AI hallucination by 90%+
+    satisfied_by:
+      - controlled-domain/aggregate.yaml#entities.StandardAnswer
+      - cross-context/ai.yaml#answer_compliance_check
+
+# ---------------------------------------------------------------------------
+# Cross-Context Dependencies
+# ---------------------------------------------------------------------------
+
+cross_context_dependencies:
+  - id: XC1
+    name: "AI Question Generation"
+    source_context: "QuestionBank"
+    target_context: "DSEGradingPlatform"
+    interface_type: "AI Service (AntiCorruption Layer)"
+    contract_spec: cross-context/ai.yaml
+    note: "Optional: AI can generate question suggestions from text/pdfs"
+
+  - id: XC2
+    name: "Subject Reference"
+    source_context: "QuestionBank"
+    target_context: "DSEGradingPlatform"
+    interface_type: "Shared Aggregate Reference"
+    note: "Questions reference Subject aggregate from essay grading platform"
+
+# ---------------------------------------------------------------------------
+# Generation Metadata
+# ---------------------------------------------------------------------------
+
+generation:
+  version: "1.0.0"
+  created_at: "2026-04-20T23:10:00+08:00"
+  last_generated: null
+
+  history:
+    - date: "2026-04-20"
+      change: "Initial question bank frame - derived from exam-question microservice"
+
+  derived_from:
+    - "README.md exam-question microservice (port 8081)"
+    - "Frontend: teacher view - 题库管理, 标签管理"
+
+  output_paths:
+    application: "src/app/api/questions/"
+    domain: "src/models/"
+    infrastructure: "src/lib/"

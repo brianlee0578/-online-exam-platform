@@ -1,0 +1,74 @@
+# docs/specs/dse-essay-grading/cross-context/digitalocean.yaml
+cross_context:
+  name: "DigitalOcean Spaces"
+  type: "Object Storage (S3-compatible)"
+
+  # Interface contract
+  interface_type: "S3 REST API"
+
+  # Bucket configuration
+  bucket:
+    name: "dse-essays-${ENV}"
+    region: "sgp1"  # Singapore
+    acl: "private"
+
+  # Operations
+  operations:
+    - name: "uploadImage"
+      action: "PUT /{bucket}/essays/{studentId}/{essayId}/{filename}"
+      input:
+        name: "UploadInput"
+        fields:
+          - name: "file"
+            type: "Buffer"
+          - name: "contentType"
+            type: "string (image/jpeg|image/png)"
+          - name: "metadata"
+            type: "object"
+      output:
+        name: "UploadOutput"
+        fields:
+          - name: "url"
+            type: "string"
+          - name: "etag"
+            type: "string"
+      constraints:
+        max_file_size: "5MB"
+        allowed_types:
+          - "image/jpeg"
+          - "image/png"
+
+    - name: "getImage"
+      action: "GET /{bucket}/essays/{studentId}/{essayId}/{filename}"
+      output:
+        name: "ImageOutput"
+        fields:
+          - name: "body"
+            type: "Buffer"
+          - name: "contentType"
+            type: "string"
+      error_handling:
+        - code: "not_found"
+          strategy: "return null URL, frontend shows placeholder"
+
+    - name: "deleteImages"
+      action: "DELETE multiple"
+      input:
+        name: "DeleteInput"
+        fields:
+          - name: "urls"
+            type: "string[]"
+      error_handling:
+        - code: "partial_failure"
+          strategy: "log failures, continue with successful deletes"
+
+  # CDN configuration
+  cdn:
+    enabled: true
+    endpoint: "https://essays.example.com"  # Custom domain
+    cache_ttl: 3600  # 1 hour
+
+  # Cost management
+  cost_control:
+    max_storage_gb: 100
+    alert_threshold_gb: 80

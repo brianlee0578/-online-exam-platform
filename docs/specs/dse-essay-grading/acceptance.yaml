@@ -1,0 +1,188 @@
+# docs/specs/dse-essay-grading/acceptance.yaml
+acceptance:
+  version: "1.0.0"
+  feature: "DSE Essay Grading Platform"
+  created_at: "2026-04-20"
+
+  # Test scenarios
+  scenarios:
+    - id: "ASC-001"
+      title: "Student submits text essay and receives AI grade"
+      given:
+        - "Student is authenticated"
+        - "Subject 'chinese' is active"
+      when:
+        - "Student submits essay with 500 characters via POST /api/essays"
+        - "AI grading completes"
+      then:
+        - "Response includes essayId"
+        - "Response includes dimension scores"
+        - "Response includes totalScore (0-100)"
+        - "Response includes confidence (0-1)"
+        - "Essay status is 'ai_graded' or 'pending_review'"
+
+    - id: "ASC-002"
+      title: "Student uploads image and AI performs OCR"
+      given:
+        - "Student is authenticated"
+        - "Subject 'english' is active"
+      when:
+        - "Student uploads JPG image (2MB) via POST /api/essays"
+      then:
+        - "OCR extracts text from image"
+        - "Essay contentText contains recognized text"
+        - "AI grading is triggered automatically"
+
+    - id: "ASC-003"
+      title: "AI high confidence auto-approves"
+      given:
+        - "Student submits essay"
+        - "AI confidence = 0.92"
+      when:
+        - "Grading completes"
+      then:
+        - "Essay status is 'ai_graded'"
+        - "No teacher review required"
+
+    - id: "ASC-004"
+      title: "AI low confidence requires teacher review"
+      given:
+        - "Student submits essay"
+        - "AI confidence = 0.45"
+      when:
+        - "Grading completes"
+      then:
+        - "Essay status is 'pending_review'"
+        - "Essay appears in teacher's review queue"
+
+    - id: "ASC-005"
+      title: "Teacher approves AI scores"
+      given:
+        - "Teacher is authenticated with review_essay permission"
+        - "Essay 'essay1' is in pending_review status"
+      when:
+        - "Teacher calls POST /api/reviews with action='approved'"
+      then:
+        - "Review is recorded"
+        - "Essay status changes to 'teacher_reviewed'"
+        - "Final scores match AI scores"
+
+    - id: "ASC-006"
+      title: "Teacher modifies scores"
+      given:
+        - "Teacher is authenticated"
+        - "Essay has AI grades"
+      when:
+        - "Teacher modifies dimension 'content' from 75 to 80"
+      then:
+        - "Original AI scores preserved in originalScores"
+        - "Final scores reflect modification"
+        - "Audit log includes teacher_id and timestamp"
+
+    - id: "ASC-007"
+      title: "Teacher returns essay to student"
+      given:
+        - "Teacher is authenticated"
+        - "Essay has issues requiring revision"
+      when:
+        - "Teacher calls POST /api/reviews with action='returned' and feedback='Please improve thesis statement'"
+      then:
+        - "Essay status changes to 'returned'"
+        - "Student can view feedback"
+        - "Student can resubmit essay"
+
+    - id: "ASC-008"
+      title: "Rate limiting prevents abuse"
+      given:
+        - "User has made 100 requests in the last minute"
+      when:
+        - "User attempts 101st request"
+      then:
+        - "Response status is 429"
+        - "Response includes retry-after header"
+
+    - id: "ASC-009"
+      title: "Multi-subject: English essay grading"
+      given:
+        - "Student selects subject 'english'"
+        - "English uses different grading dimensions (Content, Organization, Language, Vocabulary)"
+      when:
+        - "Student submits English essay"
+      then:
+        - "AI grades using English-specific dimensions"
+        - "Scores reflect English writing criteria"
+
+    - id: "ASC-010"
+      title: "Essay status transitions are atomic"
+      given:
+        - "Essay is in 'pending' status"
+      when:
+        - "Grading completes and tries to update status"
+        - "Concurrent modification attempt occurs"
+      then:
+        - "Only one update succeeds"
+        - "Other update returns conflict error (409)"
+
+    # Mobile Upload Scenarios
+    - id: "ASC-011"
+      title: "Mobile: Student captures photo from device camera"
+      given:
+        - "Student is on mobile device (iOS Safari or Android Chrome)"
+        - "Student is authenticated"
+        - "Subject 'chinese' is active"
+      when:
+        - "Student taps 'Take Photo' button"
+        - "Browser requests camera permission"
+        - "Student captures photo"
+      then:
+        - "Photo appears in upload preview"
+        - "Image auto-compressed to max 1MB"
+        - "EXIF orientation corrected for portrait photos"
+        - "Student can submit or retake"
+
+    - id: "ASC-012"
+      title: "Mobile: Student uploads from photo library"
+      given:
+        - "Student is on mobile device"
+        - "Camera access denied or not preferred"
+      when:
+        - "Student taps 'Choose from Library'"
+        - "Student selects photo"
+      then:
+        - "Photo appears in upload preview"
+        - "Image auto-compressed before upload"
+        - "Upload proceeds normally"
+
+    - id: "ASC-013"
+      title: "Mobile: Large photo auto-compressed before upload"
+      given:
+        - "Student selects a 4MB photo (4000x3000px)"
+      when:
+        - "Photo is selected"
+      then:
+        - "Photo compressed to max 1MB"
+        - "Photo resized to max 2048px longest edge"
+        - "Quality reduced to 0.8"
+        - "Upload completes successfully"
+
+    - id: "ASC-014"
+      title: "Mobile: Server detects device type via userAgent"
+      given:
+        - "Request comes from mobile device"
+      when:
+        - "NextRequest passes through middleware"
+      then:
+        - "userAgent.device.type = 'mobile'"
+        - "Viewport set appropriately"
+        - "Mobile-optimized UI served"
+
+    - id: "ASC-015"
+      title: "Mobile: Upload respects safe area on iPhone notch"
+      given:
+        - "Student is on iPhone X or newer with notch"
+      when:
+        - "Student opens essay upload page"
+      then:
+        - "Upload button respects safe-area-inset-bottom"
+        - "Camera button not obscured by notch"
+        - "UI usable in both portrait and landscape"

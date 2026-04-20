@@ -1,0 +1,126 @@
+# docs/specs/dse-essay-grading/frame.yaml
+problem_frame: "DSE Essay Grading Platform"
+frame_type: CommandedBehaviorFrame
+
+intent: |
+  When a Student uploads an essay (via text, image, or mobile camera), the Machine
+  shall perform AI-based grading and optionally require Teacher review, so that
+  Students receive timely feedback on their writing and Teachers can efficiently
+  validate or adjust scores.
+
+# ---------------------------------------------------------------------------
+# Problem Frame Components
+# ---------------------------------------------------------------------------
+
+operator:
+  name: "Student"
+  description: "Hong Kong secondary school student taking DSE exams"
+
+machine:
+  name: "DSEGradingMachine"
+  machine_spec: machine/machine.yaml
+
+controlled_domain:
+  domain: "GradingDomain"
+  entity: "Essay (Aggregate Root)"
+  aggregate_spec: controlled-domain/aggregate.yaml
+
+# ---------------------------------------------------------------------------
+# Frame Concerns（問題框架關注點）
+# ---------------------------------------------------------------------------
+
+frame_concerns:
+  - id: FC1
+    name: "AI Grading Accuracy"
+    description: |
+      AI shall produce scores within acceptable confidence thresholds.
+      confidence > 0.85: auto-approve
+      confidence < 0.6: require teacher review
+    satisfied_by:
+      - controlled-domain/aggregate.yaml#invariants.confidenceThreshold
+      - machine/use-case.yaml#grading_confidence_check
+
+  - id: FC2
+    name: "OCR Recognition Quality"
+    description: |
+      Handwritten or printed essay images must be correctly recognized.
+      System shall handle blurry images gracefully with fallback to manual input.
+    satisfied_by:
+      - machine/use-case.yaml#ocr_input_validation
+      - cross-context/openai.yaml#vision_reliability
+
+  - id: FC3
+    name: "Teacher Review Workflow"
+    description: |
+      Essays flagged for review shall be visible to Teachers within 5 minutes.
+      Teachers can approve, modify scores, or return essays to students.
+    satisfied_by:
+      - controlled-domain/aggregate.yaml#invariants.reviewStateMachine
+      - machine/use-case.yaml#teacher_review_use_case
+
+  - id: FC4
+    name: "Multi-Subject Support"
+    description: |
+      Platform shall support Chinese, English, and Mathematics essays.
+      Each subject has distinct grading dimensions and prompt templates.
+    satisfied_by:
+      - controlled-domain/aggregate.yaml#entities.Subject
+      - machine/use-case.yaml#subject_config_switching
+
+  - id: FC5
+    name: "Data Consistency"
+    description: |
+      Essay status transitions must be atomic and traceable.
+      All score changes must maintain audit trail.
+    satisfied_by:
+      - controlled-domain/aggregate.yaml#invariants.statusTransitions
+      - machine/use-case.yaml#transaction_boundary
+
+  - id: FC6
+    name: "Mobile Upload Support"
+    description: |
+      Students shall be able to capture and upload photos from mobile devices.
+      iOS Safari and Android Chrome supported via input[capture] attribute.
+      Client-side compression to max 1MB, EXIF orientation correction.
+    satisfied_by:
+      - machine/controller.yaml#mobile_middleware
+      - requirements/cbf-req-1-essay-grading.yaml#mobile_business_rules
+
+# ---------------------------------------------------------------------------
+# Cross-Context Dependencies（跨限界上下文依賴）
+# ---------------------------------------------------------------------------
+
+cross_context_dependencies:
+  - id: XC1
+    name: "OpenAI Integration"
+    source_context: "DSEGradingPlatform"
+    target_context: "OpenAI"
+    interface_type: "External API (AntiCorruption Layer)"
+    contract_spec: cross-context/openai.yaml
+
+  - id: XC2
+    name: "DigitalOcean Spaces"
+    source_context: "DSEGradingPlatform"
+    target_context: "DigitalOcean"
+    interface_type: "Object Storage ACL"
+    contract_spec: cross-context/digitalocean.yaml
+
+# ---------------------------------------------------------------------------
+# Generation Metadata（生成元數據）
+# ---------------------------------------------------------------------------
+
+generation:
+  version: "1.0.0"
+  created_at: "2026-04-20T22:40:00+08:00"
+  last_generated: "2026-04-20T23:00:00+08:00"
+
+  history:
+    - date: "2026-04-20"
+      change: "Initial frame definition"
+    - date: "2026-04-20"
+      change: "Added FC6 Mobile Upload Support"
+
+  output_paths:
+    application: "src/app/api/"
+    domain: "src/models/"
+    infrastructure: "src/lib/"

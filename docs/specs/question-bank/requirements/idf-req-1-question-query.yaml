@@ -1,0 +1,42 @@
+# docs/specs/question-bank/requirements/idf-req-1-question-query.yaml
+requirement:
+  id: REQ-QB-003
+  title: "Question Search and Filter (Query)"
+  type: functional
+  priority: high
+
+  # User Story
+  description: |
+    As a Teacher or Admin
+    I want to search and filter Questions
+    So that I can quickly find questions for exam preparation
+
+  # Business Rules
+  business_rules:
+    - id: BR1
+      rule: "Search by question content (full-text search)"
+    - id: BR2
+      rule: "Filter by Subject (required)"
+    - id: BR3
+      rule: "Filter by Tags (multiple, AND/OR logic)"
+    - id: BR4
+      rule: "Filter by Question Type"
+    - id: BR5
+      rule: "Filter by Difficulty (range 1-5)"
+    - id: BR6
+      rule: "Filter by creation date range"
+    - id: BR7
+      rule: "Results paginated, default 20 per page"
+
+  # Addresses Frame Concerns
+  addresses_concerns:
+    - FC3  # Multi-Question Type Support (query by type)
+    - FC4  # Tag Organization (filter by tags)
+
+  # Acceptance Conditions
+  acceptance_conditions:
+    - "AC1: Teacher can search '孫子' and get all questions containing that text"
+    - "AC2: Teacher can filter: Subject=中文, Tag=文言文, Difficulty=3"
+    - "AC3: Teacher can combine filters with AND logic"
+    - "AC4: Results sorted by relevance or date"
+    - "AC5: Pagination shows total count and page navigation"

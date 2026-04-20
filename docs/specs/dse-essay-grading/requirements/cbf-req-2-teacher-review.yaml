@@ -1,0 +1,42 @@
+# docs/specs/dse-essay-grading/requirements/cbf-req-2-teacher-review.yaml
+requirement:
+  id: REQ-002
+  title: "Teacher Review and Score Validation"
+  type: functional
+  priority: high
+
+  # User Story 格式
+  description: |
+    As a DSE Teacher
+    I want to review essays flagged by AI or requested for human review
+    So that I can ensure grading accuracy and provide final scores
+
+  # 業務規則
+  business_rules:
+    - id: BR1
+      rule: "Teacher must have 'review_essay' permission_code to access review functions"
+    - id: BR2
+      rule: "Teacher can only review essays assigned to their subjects"
+    - id: BR3
+      rule: "Teacher can approve AI scores as-is (confidence >= 0.6)"
+    - id: BR4
+      rule: "Teacher can modify any dimension score before finalizing"
+    - id: BR5
+      rule: "Teacher can return essay to student with feedback for revision"
+    - id: BR6
+      rule: "All review actions must be logged with teacher_id and timestamp"
+
+  # 連結到 Frame Concerns
+  addresses_concerns:
+    - FC3  # Teacher Review Workflow
+    - FC5  # Data Consistency
+
+  # 驗收條件
+  acceptance_conditions:
+    - "AC1: Teacher sees list of essays requiring review, sorted by submission time"
+    - "AC2: Teacher can filter essays by subject and status"
+    - "AC3: Teacher can view full essay content and AI grading details"
+    - "AC4: Teacher can approve AI scores with one click"
+    - "AC5: Teacher can modify any score dimension before approval"
+    - "AC6: Teacher can return essay to student with mandatory feedback"
+    - "AC7: All actions are logged and auditable"

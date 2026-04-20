@@ -1,0 +1,68 @@
+# docs/specs/question-bank/machine/query-use-case.yaml
+use_case:
+  name: "QueryQuestionUseCase"
+  type: query
+
+  # Input/Output
+  input:
+    name: "QuestionQueryInput"
+    fields:
+      - name: "subjectId"
+        type: "string (optional)"
+        required: false
+      - name: "tagIds"
+        type: "string[] (optional)"
+        required: false
+      - name: "questionType"
+        type: "string (optional)"
+        required: false
+      - name: "difficultyMin"
+        type: "number (optional)"
+        required: false
+      - name: "difficultyMax"
+        type: "number (optional)"
+        required: false
+      - name: "search"
+        type: "string (optional)"
+        required: false
+      - name: "page"
+        type: "number (default: 1)"
+        required: false
+      - name: "limit"
+        type: "number (default: 20, max: 100)"
+        required: false
+
+  output:
+    name: "QuestionListOutput"
+    fields:
+      - name: "questions"
+        type: "QuestionSummary[]"
+      - name: "total"
+        type: "number"
+      - name: "page"
+        type: "number"
+      - name: "totalPages"
+        type: "number"
+
+  # Query behavior
+  query_logic:
+    filters:
+      - field: "subjectId"
+        operator: "equals"
+      - field: "tagIds"
+        operator: "intersects"
+      - field: "questionType"
+        operator: "equals"
+      - field: "difficulty"
+        operator: "between"
+      - field: "content"
+        operator: "fulltext"
+
+    sorting:
+      default: "createdAt desc"
+      allowed: "createdAt|difficulty|questionType"
+
+  # Tag filtering (satisfies FC4)
+  tag_filtering: |
+    AND logic: all specified tags must match
+    OR logic: any tag matches (when mode=any)

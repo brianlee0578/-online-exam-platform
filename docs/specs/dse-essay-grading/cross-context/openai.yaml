@@ -1,0 +1,77 @@
+# docs/specs/dse-essay-grading/cross-context/openai.yaml
+cross_context:
+  name: "OpenAI Integration"
+  type: "AntiCorruption Layer (External API)"
+
+  # Interface contract
+  interface_type: "REST API via OpenAI SDK"
+
+  # Operations
+  operations:
+    - name: "performOCR"
+      endpoint: "POST /chat/completions"
+      model: "gpt-4o-mini (vision)"
+      input:
+        name: "OCRInput"
+        fields:
+          - name: "imageUrls"
+            type: "string[]"
+          - name: "prompt"
+            type: "string"
+      output:
+        name: "OCR output"
+        fields:
+          - name: "text"
+            type: "string"
+          - name: "confidence"
+            type: "number"
+      error_handling:
+        - code: "rate_limit"
+          strategy: "retry with exponential backoff (max 3 attempts)"
+        - code: "invalid_image"
+          strategy: "return error with message"
+        - code: "timeout"
+          strategy: "return error, suggest manual input"
+
+    - name: "gradeEssay"
+      endpoint: "POST /chat/completions"
+      model: "gpt-4o-mini (chat)"
+      input:
+        name: "GradeInput"
+        fields:
+          - name: "content"
+            type: "string"
+          - name: "subject"
+            type: "string"
+          - name: "gradingPrompt"
+            type: "string"
+      output:
+        name: "GradeOutput"
+        fields:
+          - name: "dimensions"
+            type: "DimensionScore[]"
+          - name: "totalScore"
+            type: "number"
+          - name: "confidence"
+            type: "number"
+      error_handling:
+        - code: "rate_limit"
+          strategy: "queue request, process when quota available"
+        - code: "invalid_response"
+          strategy: "retry once, then return partial result with low confidence"
+
+  # Reliability patterns
+  circuit_breaker:
+    enabled: true
+    threshold: 5  # failures before opening
+    timeout: 60s  # circuit reset time
+
+  retry_policy:
+    max_attempts: 3
+    backoff: "exponential"
+    base_delay: 1s
+
+  # Cost management
+  cost_control:
+    max_tokens_per_request: 2000
+    budget_alert_threshold: 80%  # of monthly budget

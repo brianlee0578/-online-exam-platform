@@ -1,0 +1,96 @@
+# docs/specs/question-bank/machine/use-case.yaml
+use_case:
+  name: "CreateQuestionUseCase"
+  type: command
+
+  # Input/Output
+  input:
+    name: "CreateQuestionInput"
+    fields:
+      - name: "subjectId"
+        type: "string (ObjectId)"
+        required: true
+        validation: "ObjectId format"
+
+      - name: "questionType"
+        type: "string (enum)"
+        required: true
+        validation: "single_choice|multiple_choice|true_false|fill_blank|essay|math"
+
+      - name: "content"
+        type: "string"
+        required: true
+        validation: "length: 5-5000 chars"
+
+      - name: "options"
+        type: "QuestionOption[] (optional)"
+        required: false
+        validation: "required for choice types, min 2 options"
+
+      - name: "correctAnswers"
+        type: "string[]"
+        required: true
+        validation: "at least 1 for choice types"
+
+      - name: "difficulty"
+        type: "number (1-5)"
+        required: true
+        validation: "integer 1-5"
+
+      - name: "tagIds"
+        type: "string[] (ObjectId[])"
+        required: true
+        validation: "min 1, max 10"
+
+      - name: "rubric"
+        type: "string (optional)"
+        required: false
+        validation: "required for essay type"
+
+  output:
+    name: "QuestionOutput"
+    fields:
+      - name: "id"
+        type: "string"
+      - name: "version"
+        type: "number"
+      - name: "createdAt"
+        type: "Date"
+
+  # Design by Contract
+  contracts:
+    pre_conditions:
+      - id: PRE1
+        condition: "Teacher has 'question:write' permission"
+        error: "PERMISSION_DENIED"
+
+      - id: PRE2
+        condition: "Subject exists and is active"
+        error: "SUBJECT_NOT_FOUND"
+
+      - id: PRE3
+        condition: "All Tag IDs exist"
+        error: "TAG_NOT_FOUND"
+
+      - id: PRE4
+        condition: "Options count matches question type requirements"
+        error: "INVALID_OPTIONS"
+
+    post_conditions:
+      - id: POST1
+        condition: "Question created with version=1"
+      - id: POST2
+        condition: "QuestionVersion record created"
+      - id: POST3
+        condition: "Event QuestionCreatedEvent published"
+
+  transaction_boundary:
+    type: "RequiresNew"
+    isolation: "ReadCommitted"
+
+  idempotency:
+    enabled: true
+    key: "content+subjectId+createdBy"
+
+  publishes_events:
+    - "QuestionCreatedEvent"

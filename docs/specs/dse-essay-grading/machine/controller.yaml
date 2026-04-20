@@ -1,0 +1,75 @@
+# docs/specs/dse-essay-grading/machine/controller.yaml
+controller:
+  name: "EssayController"
+  type: "REST API Route Handler"
+
+  # API Endpoints
+  routes:
+    - method: "POST"
+      path: "/api/essays"
+      handler: "createEssay"
+      auth: "jwt_required"
+      input: "CreateEssayInput"
+      output: "EssayOutput"
+
+    - method: "GET"
+      path: "/api/essays"
+      handler: "listEssays"
+      auth: "jwt_required"
+      input: "null"
+      output: "EssayListOutput"
+
+    - method: "GET"
+      path: "/api/essays/:id"
+      handler: "getEssay"
+      auth: "jwt_required"
+      input: "null"
+      output: "EssayDetailOutput"
+
+    - method: "GET"
+      path: "/api/essays/:id/grade"
+      handler: "getAIGrade"
+      auth: "jwt_required"
+      input: "null"
+      output: "AIGradeOutput"
+
+    - method: "POST"
+      path: "/api/ai/ocr"
+      handler: "performOCR"
+      auth: "jwt_required"
+      input: "OCRInput"
+      output: "OCROutput"
+
+    - method: "POST"
+      path: "/api/ai/grade"
+      handler: "gradeEssay"
+      auth: "jwt_required"
+      input: "GradeInput"
+      output: "GradeOutput"
+
+    - method: "POST"
+      path: "/api/reviews"
+      handler: "submitReview"
+      auth: "jwt_required (teacher role)"
+      input: "ReviewInput"
+      output: "ReviewOutput"
+
+    - method: "GET"
+      path: "/api/reviews"
+      handler: "listReviews"
+      auth: "jwt_required (teacher role)"
+      input: "null"
+      output: "ReviewListOutput"
+
+  # Middleware
+  middleware:
+    - "authenticateJWT"
+    - "rateLimiter"  # 100 req/min per user
+    - "validateInput"  # Zod schema validation
+    - "errorHandler"
+
+  # Mobile Upload Specific
+  mobile_middleware:
+    - "detectDevice"  # Sets device type in request context (mobile/tablet/desktop)
+    - "compressionHandler"  # Handles pre-upload image compression validation
+    - "exifNormalizer"  # Normalizes EXIF orientation before storage
