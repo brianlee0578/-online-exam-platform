@@ -6,8 +6,114 @@ cross_context:
   # Interface
   interface_type: "OpenAI Chat Completion API"
 
+  # ========================================================================
+  # Shared Types (imported from controlled-domain/aggregate.yaml)
+  # ========================================================================
+  shared_types:
+    - name: "StandardAnswer"
+      imported_from: "controlled-domain/aggregate.yaml#entities.StandardAnswer"
+      fields:
+        - name: "exactAnswer"
+          type: "string"
+          description: "唯一標準答案"
+        - name: "acceptableVariants"
+          type: "string[]"
+          description: "可接受的其他答案形式 (e.g., ['OK', 'True', '正確'])"
+        - name: "formatRules"
+          type: "FormatRules (inline)"
+          description: "格式规则：unit, precision, case sensitivity"
+          fields:
+            - name: "unit"
+              type: "string (nullable)"
+            - name: "precision"
+              type: "number (nullable)"
+            - name: "caseSensitive"
+              type: "boolean"
+        - name: "totalPoints"
+          type: "number"
+      note: "Type definition lives in aggregate.yaml — this cross-context reference is the single source of truth"
+    - name: "ScoringCriteria"
+      imported_from: "controlled-domain/aggregate.yaml#entities.ScoringCriteria"
+
+  # ========================================================================
+  # Mode A: OAuth Providers (via sub2api proxy)
+  # ========================================================================
+  mode_a_oauth:
+    providers:
+      - name: "OpenAI"
+        endpoint: "api.openai.com"
+        auth_type: "OAuth 2.0 + PKCE"
+        sub2api_route: "/openai/*"
+      - name: "GitHub Copilot"
+        endpoint: "chatgpt.com/backend-api/codex"
+        auth_type: "OAuth 2.0 + PKCE"
+        sub2api_route: "/copilot/*"
+    characteristics:
+      - "User authenticates directly with provider (no API key stored)"
+      - "sub2api handles token exchange and refresh"
+      - "Tenant only stores OAuth refresh token reference"
+      - "Higher security - credentials never touch our server"
+    configuration:
+      tenant_field: "tenant.aiModeAProvider"
+      sub2api_endpoint: "${SUB2API_URL}"
+      sub2api_endpoint_note: "Set via SUB2API_URL environment variable at runtime — never hardcode"
+
+  # ========================================================================
+  # Mode B: API Key Providers (Chinese AIs)
+  # ========================================================================
+  mode_b_api_key:
+    providers:
+      - name: "DeepSeek"
+        endpoint: "api.deepseek.com"
+        auth_type: "API Key (Bearer Token)"
+      - name: "Zhipu AI (智谱)"
+        endpoint: "open.bigmodel.cn"
+        auth_type: "API Key (Bearer Token)"
+      - name: "Wenxin (文心一言)"
+        endpoint: "aip.baidubce.com"
+        auth_type: "API Key (Bearer Token)"
+      - name: "Moonshot (月之暗面)"
+        endpoint: "api.moonshot.cn"
+        auth_type: "API Key (Bearer Token)"
+      - name: "MiniMax"
+        endpoint: "api.minimax.chat/v1"
+        auth_type: "API Key (Bearer Token)"
+        note: "Verify endpoint — MiniMax uses conversation/completions endpoints"
+    characteristics:
+      - "API key stored per tenant (encrypted at rest)"
+      - "Direct provider API calls (no proxy)"
+      - "Simpler setup, lower security posture"
+    configuration:
+      tenant_field: "tenant.aiModeBProvider"
+      tenant_key_field: "tenant.aiModeBApiKeyEncrypted"
+
+  # ========================================================================
+  # Usage Tracking
+  # ========================================================================
+  usage_tracking:
+    enabled: true
+    per_mode:
+      mode_a:
+        tracked_fields:
+          - "sub2api proxy logs -> request count"
+          - "sub2api proxy logs -> token count (input/output)"
+          - "sub2api proxy logs -> cost estimate"
+        source: "sub2api usage webhooks or log aggregation"
+        aggregation: "Daily per tenant per provider"
+      mode_b:
+        tracked_fields:
+          - "Direct API response headers -> token usage"
+          - "Provider dashboard -> cost reports"
+        source: "Provider API response headers + cron job sync"
+        aggregation: "Daily per tenant per provider"
+    tenant_limits:
+      field: "tenant.aiMonthlyTokenBudget"
+      enforcement: "Block requests when 80% budget consumed"
+      reset: "Monthly (configurable)"
+
   # AI Grading Compliance Rules (CRITICAL - prevents hallucinations)
-  ai_grading_rules: |
+  # These are DOCUMENTATION — see ComplianceChecker below for executable enforcement
+  ai_grading_rules_doc: |
     MANDATORY COMPLIANCE:
     1. AI MUST extract and follow Question.standardAnswer exactly
     2. AI MUST use Question.scoringCriteria for point allocation
@@ -19,6 +125,35 @@ cross_context:
     - AI MUST NOT invent answers not in standardAnswer
     - AI MUST NOT ignore format rules
     - AI MUST NOT exceed totalPoints allocation
+
+  # Executable compliance enforcement — produces complianceStatus field
+  compliance_checker:
+    name: "ComplianceChecker"
+    description: "Post-grading validator that checks AI output against standard answer rules"
+    rules:
+      - id: CC1
+        name: "answer_invariants"
+        check: "returned answer must match at least one StandardAnswer.acceptableVariants"
+        enforcement: "If violated → complianceStatus=VIOLATION, confidence -= 50%, flag for human review"
+      - id: CC2
+        name: "format_compliance"
+        check: "student answer must follow StandardAnswer.formatRules (unit, precision, case)"
+        enforcement: "If violated → complianceStatus=VIOLATION, formatViolations returned"
+      - id: CC3
+        name: "no_out_of_scope"
+        check: "AI feedback must not reference knowledge outside question context"
+        enforcement: "If violated → complianceStatus=VIOLATION, confidence -= 50%"
+      - id: CC4
+        name: "scoring_bounds"
+        check: "returned score must not exceed scoringCriteria.totalPoints"
+        enforcement: "If violated → complianceStatus=VIOLATION, score clamped to maxScore"
+      - id: CC5
+        name: "no_hallucination"
+        check: "AI must not fabricate facts not in standardAnswer"
+        enforcement: "If violated → complianceStatus=VIOLATION, confidence -= 50%"
+    output_field: "complianceStatus"
+    possible_values: ["COMPLIANT", "VIOLATION"]
+    note: "ComplianceChecker runs AFTER AI grades — it validates the AI's output, not the student answer"
 
   # Operations
   operations:
@@ -32,12 +167,16 @@ cross_context:
           - name: "studentAnswer"
             type: "string"
           - name: "standardAnswer"
-            type: "StandardAnswer"
+            type: "StandardAnswer (imported)"
+            description: "Imported from controlled-domain/aggregate.yaml#StandardAnswer"
           - name: "scoringCriteria"
-            type: "ScoringCriteria"
+            type: "ScoringCriteria (imported)"
+          - name: "acceptableVariants"
+            type: "string[]"
+            description: "Inline copy of StandardAnswer.acceptableVariants for prompt injection — kept in sync by caller"
           - name: "strictMode"
             type: "boolean"
-            description: "If true, reject answers not matching acceptableVariants exactly"
+            description: "If true, only exact matches in acceptableVariants pass; partial matches flagged as requiresHumanReview"
       output:
         name: "GradeOutput"
         fields:
@@ -126,14 +265,24 @@ cross_context:
           - name: "reasoning"
             type: "string"
 
-  # Hallucination Prevention
+  # Hallucination Prevention (maps to ComplianceChecker rules CC1-CC5)
   hallucination_prevention:
     enabled: true
+    note: "These checks validate AI grader output — see compliance_checker.rules for enforcement details"
     checks:
+      - name: "no_hallucination"
+        maps_to: "CC1, CC5"
+        description: "AI must not fabricate facts not in standardAnswer"
       - name: "answer_invariants"
-        description: "Student answer must match at least one acceptable variant"
+        maps_to: "CC1"
+        description: "AI-returned answer must match an acceptable variant"
       - name: "format_compliance"
-        description: "Student answer must follow format rules (unit, precision)"
-      - name: "no_out-of-scope"
+        maps_to: "CC2"
+        description: "AI feedback must respect format rules (unit, precision, case)"
+      - name: "no_out_of_scope"
+        maps_to: "CC3"
         description: "AI grader must not reference knowledge outside question context"
+      - name: "scoring_bounds"
+        maps_to: "CC4"
+        description: "AI-returned score must not exceed totalPoints"
     penalty: "If hallucination detected, reduce confidence by 50% and flag for human review"

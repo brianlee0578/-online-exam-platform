@@ -8,7 +8,9 @@
       "Bash(find /Users/leebrian/Documents/GitHub/-online-exam-platform -type f \\\\\\(-name *.java -o -name *.xml -o -name *.yml -o -name *.yaml \\\\\\))",
       "WebSearch",
       "mcp__plugin_context7_context7__resolve-library-id",
-      "mcp__plugin_context7_context7__query-docs"
+      "mcp__plugin_context7_context7__query-docs",
+      "Bash(find /Users/leebrian/Documents/GitHub/-online-exam-platform -maxdepth 3 -not -path */node_modules/* -not -path */.git/* -not -path */dist/* -type f)",
+      "Bash(find /Users/leebrian/Documents/GitHub/-online-exam-platform -name package.json -not -path */node_modules/*)"
     ]
   }
 }

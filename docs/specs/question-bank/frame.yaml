@@ -117,6 +117,45 @@ frame_concerns:
       - controlled-domain/aggregate.yaml#entities.StandardAnswer
       - cross-context/ai.yaml#answer_compliance_check
 
+  - id: FC9
+    name: "Dual-Mode AI Integration"
+    description: |
+      System supports two distinct AI integration modes:
+      - Mode A (OAuth): OpenAI, GitHub Copilot via sub2api proxy
+      - Mode B (API Key): DeepSeek, Zhipu AI, Wenxin, Moonshot, MiniMax
+      Mode selection is per-tenant configurable, not hardcoded.
+    satisfied_by:
+      - cross-context/ai.yaml#mode_a_oauth
+      - cross-context/ai.yaml#mode_b_api_key
+      - machine/use-case.yaml#ai_provider_selection
+
+  - id: FC10
+    name: "AI Compliance Enforcement (All Modes)"
+    description: |
+      ALL AI modes (OAuth and API Key) MUST enforce Standard Answer compliance:
+      - AI must extract and follow Question.standardAnswer exactly
+      - AI must use Question.scoringCriteria for point allocation
+      - AI must check acceptableVariants before marking wrong
+      - AI must apply formatRules (unit, precision, case)
+      - AI must NOT hallucinate or invent answers
+      Violations flag answer for human review regardless of provider.
+    satisfied_by:
+      - cross-context/ai.yaml#ai_grading_rules
+      - cross-context/ai.yaml#hallucination_prevention
+      - controlled-domain/aggregate.yaml#Question.invariants
+
+  - id: FC11
+    name: "Usage Tracking and Billing"
+    description: |
+      System tracks AI usage per tenant for cost allocation and rate limiting:
+      - Mode A: Token usage via sub2api proxy (OAuth token exchange)
+      - Mode B: Direct API key usage with provider reporting
+      - Both modes record: request count, token count, cost estimate
+      - Rate limits enforced per tenant configuration
+    satisfied_by:
+      - cross-context/ai.yaml#usage_tracking
+      - controlled-domain/aggregate.yaml#Tenant.aiMonthlyTokenBudget
+
 # ---------------------------------------------------------------------------
 # Cross-Context Dependencies
 # ---------------------------------------------------------------------------
@@ -136,6 +175,13 @@ cross_context_dependencies:
     target_context: "DSEGradingPlatform"
     interface_type: "Shared Aggregate Reference"
     note: "Questions reference Subject aggregate from essay grading platform"
+
+  - id: XC3
+    name: "Tenant Configuration"
+    source_context: "QuestionBank"
+    target_context: "exam-user (User & Tenant Service)"
+    interface_type: "Shared Entity Reference"
+    note: "AI mode selection (ModeA/ModeB) and token budget fields are owned by Tenant aggregate in exam-user context. Question Bank reads aiModeAProvider, aiModeBApiKeyEncrypted, aiMonthlyTokenBudget at runtime."
 
 # ---------------------------------------------------------------------------
 # Generation Metadata

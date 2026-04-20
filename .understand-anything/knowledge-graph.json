@@ -1,0 +1,178 @@
+{
+  "version": "1.0.0",
+  "project": {
+    "name": "Online Exam Platform (Specs)",
+    "languages": ["YAML"],
+    "frameworks": [],
+    "description": "DSE Essay Grading + Question Bank PRD specifications",
+    "analyzedAt": "2026-04-20T23:10:00+08:00",
+    "gitCommitHash": "03fbddc4cf32efc2b82e435404aef551698c33cf"
+  },
+  "nodes": [
+    {"id": "file:docs/specs/question-bank/frame.yaml", "name": "Question Bank Frame", "filePath": "docs/specs/question-bank/frame.yaml", "summary": "Problem frame for Question Bank Management (試題庫). Defines the QuestionBankMachine and AssessmentDomain for teachers to create, update, and organize Questions for student assessment. Covers FC1-FC8: tag integrity, versioning, multi-question types, difficulty calibration, flexible tag-based organization, standardized scoring, and standard answer for AI compliance.", "type": "file", "tags": ["spec", "question-bank", "frame", "bounded-context"]},
+    {"id": "file:docs/specs/question-bank/controlled-domain/aggregate.yaml", "name": "Question Aggregate Spec", "filePath": "docs/specs/question-bank/controlled-domain/aggregate.yaml", "summary": "Question aggregate root with properties: gradeId, subjectId, questionType (VO), content, options, standardAnswer (VO, mandatory for AI compliance), scoringCriteria (VO, mandatory), difficulty (1-5), tagIds, isDeleted, timestamps. Value objects: QuestionType (6 types), QuestionOption, StandardAnswer (exactAnswer, acceptableVariants, formatRules, commonMistakes), ScoringCriteria (totalPoints, parts, partialCredit). Entities: QuestionVersion for audit history. Invariants enforce: tagReferenceLoose, standardAnswerRequired, scoringCriteriaRequired, difficultyRange, optionsForChoice. AI compliance rules mandate exact answer following and no hallucination.", "type": "file", "tags": ["spec", "question-bank", "aggregate", "question"]},
+    {"id": "file:docs/specs/question-bank/controlled-domain/tag-aggregate.yaml", "name": "Tag Aggregate Spec", "filePath": "docs/specs/question-bank/controlled-domain/tag-aggregate.yaml", "summary": "Tag aggregate root for flexible hierarchical categorization. Identity: TagId (ObjectId). Properties: name (2-20 chars, unique case-insensitive), parentId (nullable for hierarchy), subjectIds (nullable for subject-specific tags), usageCount (cached), createdAt. Invariants: nameUniqueness, nameLength, parentExists. Hierarchy max depth 3 with query support for ancestors, descendants, siblings. Replaces rigid Grade/Subject/Unit hierarchy with flexible parent/child tags.", "type": "file", "tags": ["spec", "question-bank", "aggregate", "tag"]},
+    {"id": "file:docs/specs/question-bank/machine/machine.yaml", "name": "QuestionBankMachine Spec", "filePath": "docs/specs/question-bank/machine/machine.yaml", "summary": "QuestionBankMachine composed of: QuestionController (API endpoints), CreateQuestionUseCase, UpdateQuestionUseCase, QueryQuestionUseCase, TagUseCase. Publishes domain events: QuestionCreatedEvent, QuestionUpdatedEvent, QuestionDeletedEvent, TagCreatedEvent.", "type": "file", "tags": ["spec", "question-bank", "machine"]},
+    {"id": "file:docs/specs/question-bank/machine/controller.yaml", "name": "QuestionController Spec", "filePath": "docs/specs/question-bank/machine/controller.yaml", "summary": "REST API route handler for QuestionBankMachine. Routes: POST/GET /api/questions, GET/PUT/DELETE /api/questions/:id, GET /api/questions/:id/versions, GET/POST/PUT/DELETE /api/tags. Middleware: authenticateJWT, rateLimiter (100 req/min), validateInput (Zod), errorHandler. Question type handlers define validation rules for single_choice, multiple_choice, true_false, fill_blank, essay, math.", "type": "file", "tags": ["spec", "question-bank", "controller", "api"]},
+    {"id": "file:docs/specs/question-bank/machine/use-case.yaml", "name": "CreateQuestionUseCase Spec", "filePath": "docs/specs/question-bank/machine/use-case.yaml", "summary": "CreateQuestionUseCase command with CreateQuestionInput (subjectId, questionType, content, options, correctAnswers, difficulty, tagIds, rubric) and QuestionOutput. Design by Contract with pre-conditions (permission, subject exists, tags exist, options valid) and post-conditions (version=1, QuestionVersion created, event published). Transaction boundary: RequiresNew, ReadCommitted. Idempotency enabled with key: content+subjectId+createdBy.", "type": "file", "tags": ["spec", "question-bank", "use-case", "command"]},
+    {"id": "file:docs/specs/question-bank/cross-context/ai.yaml", "name": "AI Question Grading ACL Spec", "filePath": "docs/specs/question-bank/cross-context/ai.yaml", "summary": "Anti-Corruption Layer for AI question grading via OpenAI Chat Completion API. MANDATORY compliance rules prevent AI hallucinations: AI must follow Question.standardAnswer exactly, use scoringCriteria for point allocation, check acceptableVariants before marking wrong, apply formatRules. Operations: gradeQuestion (with strictMode), validateAnswer, generateQuestion, suggestDifficulty. Hallucination prevention checks: answer_invariants, format_compliance, no_out-of-scope.", "type": "file", "tags": ["spec", "question-bank", "cross-context", "ai", "acl"]},
+    {"id": "file:docs/specs/dse-essay-grading/frame.yaml", "name": "DSE Essay Grading Frame", "filePath": "docs/specs/dse-essay-grading/frame.yaml", "summary": "Problem frame for DSE Essay Grading Platform. Operator: Student (Hong Kong secondary school). Machine: DSEGradingMachine. Domain: GradingDomain with Essay aggregate root. Covers FC1-FC6: AI grading accuracy (confidence thresholds), OCR recognition quality, teacher review workflow, multi-subject support (Chinese, English, Math), data consistency, and mobile upload support (iOS Safari, Android Chrome).", "type": "file", "tags": ["spec", "dse-essay-grading", "frame", "bounded-context"]},
+    {"id": "file:docs/specs/dse-essay-grading/controlled-domain/aggregate.yaml", "name": "Essay Aggregate Spec", "filePath": "docs/specs/dse-essay-grading/controlled-domain/aggregate.yaml", "summary": "Essay aggregate root with identity EssayId. Properties: studentId, subject (chinese|english|mathematics), contentText, contentImageUrls, status (EssayStatus VO), timestamps. Value Objects: EssayStatus (pending/ai_graded/pending_review/teacher_reviewed/returned), DimensionScore (dimension, score 0-100, feedback). Entities: AIGrade (dimensions, totalScore, confidence 0-1, model, gradedAt), TeacherReview (teacherId, action, originalScores, finalScores, feedback). Invariants: confidenceThreshold (0-1), statusTransitions (valid state machine), reviewStateMachine (AI grade before teacher review), contentNotEmpty.", "type": "file", "tags": ["spec", "dse-essay-grading", "aggregate", "essay"]},
+    {"id": "file:docs/specs/dse-essay-grading/machine/machine.yaml", "name": "DSEGradingMachine Spec", "filePath": "docs/specs/dse-essay-grading/machine/machine.yaml", "summary": "DSEGradingMachine composed of: EssayController (API endpoints), GradingUseCase, ReviewUseCase. Essay status flow: pending -> ai_graded -> teacher_reviewed, with both ai_graded and pending_review transitioning to returned. Publishes events: EssaySubmittedEvent, AIGradingCompletedEvent, TeacherReviewCompletedEvent, EssayReturnedEvent.", "type": "file", "tags": ["spec", "dse-essay-grading", "machine"]},
+    {"id": "file:docs/specs/dse-essay-grading/cross-context/openai.yaml", "name": "OpenAI Integration ACL Spec", "filePath": "docs/specs/dse-essay-grading/cross-context/openai.yaml", "summary": "Anti-Corruption Layer for OpenAI API integration. Operations: performOCR (GPT-4o-mini vision, converts imageUrls to text with confidence), gradeEssay (GPT-4o-mini chat, returns DimensionScore[], totalScore, confidence). Reliability: circuit breaker (threshold 5, timeout 60s), retry policy (max 3 attempts, exponential backoff). Cost control: max 2000 tokens per request, 80% budget alert threshold.", "type": "file", "tags": ["spec", "dse-essay-grading", "cross-context", "openai", "acl"]},
+    {"id": "context:question-bank", "name": "Question Bank BC", "filePath": null, "summary": "Bounded context for Question Bank Management. Operators: Teachers. Machine: QuestionBankMachine. Domain: AssessmentDomain. Responsible for creating, updating, organizing, and versioning Questions with StandardAnswer and ScoringCriteria for AI grading compliance. Uses flexible hierarchical Tags for categorization.", "type": "module", "tags": ["bounded-context", "question-bank", "assessment"]},
+    {"id": "context:dse-essay-grading", "name": "DSE Essay Grading BC", "filePath": null, "summary": "Bounded context for DSE Essay Grading Platform. Operators: Students (upload essays via text/image/mobile), Teachers (review AI-graded essays). Machine: DSEGradingMachine. Domain: GradingDomain with Essay aggregate. AI grading via OpenAI with confidence thresholds and teacher override workflow.", "type": "module", "tags": ["bounded-context", "dse-essay-grading", "grading"]},
+    {"id": "aggregate:Question", "name": "Question", "filePath": "docs/specs/question-bank/controlled-domain/aggregate.yaml", "summary": "Aggregate root for assessment questions. Contains question content, type, options, mandatory StandardAnswer for AI compliance, mandatory ScoringCriteria with point allocation and partial credit rules, difficulty (1-5), and flexible tag references. Versioned via QuestionVersion entity for audit trail.", "type": "class", "tags": ["aggregate", "question-bank", "assessment"]},
+    {"id": "aggregate:Tag", "name": "Tag", "filePath": "docs/specs/question-bank/controlled-domain/tag-aggregate.yaml", "summary": "Aggregate root for flexible hierarchical categorization. Supports parent/child relationships up to 3 levels deep. Tags are loose references to Questions (no cascade delete). Can be global or subject-specific. Enables cross-cutting categorization like '文言文' across Chinese subjects.", "type": "class", "tags": ["aggregate", "question-bank", "tag", "taxonomy"]},
+    {"id": "aggregate:Essay", "name": "Essay", "filePath": "docs/specs/dse-essay-grading/controlled-domain/aggregate.yaml", "summary": "Aggregate root for DSE essay submissions. Contains student submission (text or image via OCR), status lifecycle (pending -> ai_graded -> pending_review -> teacher_reviewed -> returned), and embedded AIGrade/TeacherReview entities. Status transitions are atomic and traceable.", "type": "class", "tags": ["aggregate", "dse-essay-grading", "essay"]},
+    {"id": "vo:QuestionType", "name": "QuestionType", "filePath": "docs/specs/question-bank/controlled-domain/aggregate.yaml", "summary": "Value object for question type classification. Allowed values: single_choice (1 correct), multiple_choice (1+ correct), true_false (2 options), fill_blank, essay (has rubric), calculation (KaTeX rendering).", "type": "class", "tags": ["value-object", "question-bank"]},
+    {"id": "vo:StandardAnswer", "name": "StandardAnswer", "filePath": "docs/specs/question-bank/controlled-domain/aggregate.yaml", "summary": "Value object defining the mandatory standard answer for AI grading compliance. Contains: exactAnswer (primary answer), acceptableVariants (alternative correct forms), formatRules (caseSensitive, trimSpaces, unitRequired, precision, allowLatex), commonMistakes (common errors AI should watch for). AI MUST follow exactly to prevent hallucinations.", "type": "class", "tags": ["value-object", "ai-compliance", "question-bank"]},
+    {"id": "vo:ScoringCriteria", "name": "ScoringCriteria", "filePath": "docs/specs/question-bank/controlled-domain/aggregate.yaml", "summary": "Value object for explicit scoring rules. Contains: totalPoints, parts[] (partId, description, maxPoints, keywords for partial credit), partialCredit[] (condition, partialPoints, description). AI grader MUST use these criteria to allocate points and apply partial credit rules.", "type": "class", "tags": ["value-object", "scoring", "question-bank"]},
+    {"id": "vo:EssayStatus", "name": "EssayStatus", "filePath": "docs/specs/dse-essay-grading/controlled-domain/aggregate.yaml", "summary": "Value object for essay lifecycle status. Allowed values: pending (initial), ai_graded (AI completed), pending_review (flagged for teacher), teacher_reviewed (teacher validated/adjusted), returned (sent back to student).", "type": "class", "tags": ["value-object", "state-machine", "dse-essay-grading"]},
+    {"id": "vo:DimensionScore", "name": "DimensionScore", "filePath": "docs/specs/dse-essay-grading/controlled-domain/aggregate.yaml", "summary": "Value object for per-dimension grading result. Contains: dimension (e.g., content, language, structure), score (0-100), feedback (textual explanation). Used by both AIGrade and TeacherReview entities.", "type": "class", "tags": ["value-object", "grading", "dse-essay-grading"]},
+    {"id": "entity:AIGrade", "name": "AIGrade", "filePath": "docs/specs/dse-essay-grading/controlled-domain/aggregate.yaml", "summary": "Entity embedded in Essay aggregate. Represents AI grading result with: dimensions (DimensionScore[]), totalScore, confidence (0-1, where >0.85 auto-approve, <0.6 requires teacher review), model used, gradedAt timestamp.", "type": "class", "tags": ["entity", "ai", "grading", "dse-essay-grading"]},
+    {"id": "entity:TeacherReview", "name": "TeacherReview", "filePath": "docs/specs/dse-essay-grading/controlled-domain/aggregate.yaml", "summary": "Entity embedded in Essay aggregate. Represents teacher review action with: teacherId, action (approve/modify/return), originalScores (nullable, AI scores), finalScores (DimensionScore[]), feedback, reviewedAt. Requires AIGrade to exist before creation (INV3).", "type": "class", "tags": ["entity", "teacher", "review", "dse-essay-grading"]},
+    {"id": "entity:QuestionVersion", "name": "QuestionVersion", "filePath": "docs/specs/question-bank/controlled-domain/aggregate.yaml", "summary": "Entity within Question aggregate for version history. Contains: questionId, version number, standardAnswer snapshot, scoringCriteria snapshot, changedBy, changedAt, changeReason. Version history retained indefinitely on soft delete.", "type": "class", "tags": ["entity", "versioning", "audit", "question-bank"]},
+    {"id": "concept:hierarchical-tags", "name": "Hierarchical Tags", "filePath": null, "summary": "Design concept: flexible parent/child tag hierarchy replacing rigid Grade/Subject/Unit classification. Max depth 3. Supports cross-cutting tags (e.g., 文言文 across Chinese subjects). Loose reference to Questions (no cascade delete). Queryable for ancestors, descendants, siblings.", "type": "concept", "tags": ["concept", "taxonomy", "question-bank"]},
+    {"id": "concept:ai-grading-compliance", "name": "AI Grading Compliance", "filePath": null, "summary": "Design concept: rules preventing AI hallucinations in grading. Mandates: StandardAnswer.exactAnswer as primary, acceptableVariants check, formatRules validation, no guessing, explicit REQUIRES_HUMAN_REVIEW when no match. Reduces AI hallucination by 90%+.", "type": "concept", "tags": ["concept", "ai", "compliance", "anti-hallucination"]},
+    {"id": "cross-context:question-bank-to-dse", "name": "QuestionBank->DSE", "filePath": null, "summary": "Cross-context dependency: Question Bank bounded context depends on DSE Grading context. AI question generation service (XC1) and Subject reference (XC2) flow from Question Bank to DSE Grading Platform.", "type": "concept", "tags": ["cross-context", "dependency", "question-bank", "dse-essay-grading"]},
+    {"id": "cross-context:dse-to-openai", "name": "DSE->OpenAI", "filePath": null, "summary": "Cross-context dependency: DSE Essay Grading bounded context depends on external OpenAI service via Anti-Corruption Layer. OpenAI provides OCR (GPT-4o-mini vision) for image essay upload and essay grading (GPT-4o-mini chat).", "type": "concept", "tags": ["cross-context", "dependency", "dse-essay-grading", "openai"]},
+    {"id": "machine:QuestionBankMachine", "name": "QuestionBankMachine", "filePath": "docs/specs/question-bank/machine/machine.yaml", "summary": "State machine for question bank operations. Components: QuestionController (REST API), CreateQuestionUseCase, UpdateQuestionUseCase, QueryQuestionUseCase, TagUseCase. Publishes QuestionCreatedEvent, QuestionUpdatedEvent, QuestionDeletedEvent, TagCreatedEvent.", "type": "class", "tags": ["machine", "question-bank", "application-service"]},
+    {"id": "machine:DSEGradingMachine", "name": "DSEGradingMachine", "filePath": "docs/specs/dse-essay-grading/machine/machine.yaml", "summary": "State machine for essay grading workflow. Components: EssayController, GradingUseCase, ReviewUseCase. Essay status flow: pending -> ai_graded -> teacher_reviewed, with both ai_graded and pending_review transitioning to returned. Publishes EssaySubmittedEvent, AIGradingCompletedEvent, TeacherReviewCompletedEvent, EssayReturnedEvent.", "type": "class", "tags": ["machine", "dse-essay-grading", "state-machine"]},
+    {"id": "event:QuestionCreatedEvent", "name": "QuestionCreatedEvent", "filePath": "docs/specs/question-bank/controlled-domain/aggregate.yaml", "summary": "Domain event published when a new Question is created. Properties: questionId, subjectId, createdBy. Published by CreateQuestionUseCase.", "type": "event", "tags": ["event", "domain-event", "question-bank"]},
+    {"id": "event:QuestionUpdatedEvent", "name": "QuestionUpdatedEvent", "filePath": "docs/specs/question-bank/controlled-domain/aggregate.yaml", "summary": "Domain event published when a Question is updated. Properties: questionId, version number. Triggers versioning: current state saved to QuestionVersion before applying changes.", "type": "event", "tags": ["event", "domain-event", "question-bank"]},
+    {"id": "event:QuestionDeletedEvent", "name": "QuestionDeletedEvent", "filePath": "docs/specs/question-bank/controlled-domain/aggregate.yaml", "summary": "Domain event published when a Question is soft-deleted. Properties: questionId. Soft delete preserves all version history.", "type": "event", "tags": ["event", "domain-event", "question-bank"]},
+    {"id": "event:EssaySubmittedEvent", "name": "EssaySubmittedEvent", "filePath": "docs/specs/dse-essay-grading/controlled-domain/aggregate.yaml", "summary": "Domain event published when a student submits an essay. Properties: essayId, studentId, subject. Triggers the grading workflow.", "type": "event", "tags": ["event", "domain-event", "dse-essay-grading"]},
+    {"id": "event:AIGradingCompletedEvent", "name": "AIGradingCompletedEvent", "filePath": "docs/specs/dse-essay-grading/controlled-domain/aggregate.yaml", "summary": "Domain event published when AI grading completes. Properties: essayId, totalScore, confidence. If confidence < 0.6, essay transitions to pending_review for teacher review.", "type": "event", "tags": ["event", "domain-event", "ai", "dse-essay-grading"]},
+    {"id": "event:TeacherReviewCompletedEvent", "name": "TeacherReviewCompletedEvent", "filePath": "docs/specs/dse-essay-grading/controlled-domain/aggregate.yaml", "summary": "Domain event published when a teacher completes a review. Properties: essayId, teacherId, action (approve/modify/return). Finalizes the grading process.", "type": "event", "tags": ["event", "domain-event", "teacher", "dse-essay-grading"]}
+  ],
+  "edges": [
+    {"source": "context:question-bank", "target": "file:docs/specs/question-bank/frame.yaml", "type": "described_by", "weight": 1.0},
+    {"source": "context:question-bank", "target": "aggregate:Question", "type": "contains", "weight": 1.0},
+    {"source": "context:question-bank", "target": "aggregate:Tag", "type": "contains", "weight": 1.0},
+    {"source": "context:question-bank", "target": "machine:QuestionBankMachine", "type": "contains", "weight": 1.0},
+    {"source": "aggregate:Question", "target": "vo:QuestionType", "type": "contains", "weight": 0.95},
+    {"source": "aggregate:Question", "target": "vo:StandardAnswer", "type": "contains", "weight": 0.95},
+    {"source": "aggregate:Question", "target": "vo:ScoringCriteria", "type": "contains", "weight": 0.95},
+    {"source": "aggregate:Question", "target": "entity:QuestionVersion", "type": "contains", "weight": 0.9},
+    {"source": "aggregate:Question", "target": "aggregate:Tag", "type": "references", "weight": 0.85},
+    {"source": "concept:hierarchical-tags", "target": "aggregate:Tag", "type": "realizes", "weight": 0.9},
+    {"source": "concept:ai-grading-compliance", "target": "vo:StandardAnswer", "type": "realizes", "weight": 0.9},
+    {"source": "concept:ai-grading-compliance", "target": "vo:ScoringCriteria", "type": "realizes", "weight": 0.8},
+    {"source": "file:docs/specs/question-bank/controlled-domain/aggregate.yaml", "target": "aggregate:Question", "type": "defines", "weight": 1.0},
+    {"source": "file:docs/specs/question-bank/controlled-domain/tag-aggregate.yaml", "target": "aggregate:Tag", "type": "defines", "weight": 1.0},
+    {"source": "file:docs/specs/question-bank/machine/machine.yaml", "target": "machine:QuestionBankMachine", "type": "defines", "weight": 1.0},
+    {"source": "file:docs/specs/question-bank/machine/controller.yaml", "target": "machine:QuestionBankMachine", "type": "defines_component", "weight": 1.0},
+    {"source": "file:docs/specs/question-bank/machine/use-case.yaml", "target": "machine:QuestionBankMachine", "type": "defines_component", "weight": 1.0},
+    {"source": "file:docs/specs/question-bank/cross-context/ai.yaml", "target": "concept:ai-grading-compliance", "type": "defines", "weight": 1.0},
+    {"source": "file:docs/specs/question-bank/cross-context/ai.yaml", "target": "cross-context:dse-to-openai", "type": "references", "weight": 0.7},
+    {"source": "context:dse-essay-grading", "target": "file:docs/specs/dse-essay-grading/frame.yaml", "type": "described_by", "weight": 1.0},
+    {"source": "context:dse-essay-grading", "target": "aggregate:Essay", "type": "contains", "weight": 1.0},
+    {"source": "context:dse-essay-grading", "target": "machine:DSEGradingMachine", "type": "contains", "weight": 1.0},
+    {"source": "aggregate:Essay", "target": "vo:EssayStatus", "type": "contains", "weight": 0.9},
+    {"source": "aggregate:Essay", "target": "vo:DimensionScore", "type": "contains", "weight": 0.9},
+    {"source": "aggregate:Essay", "target": "entity:AIGrade", "type": "contains", "weight": 0.95},
+    {"source": "aggregate:Essay", "target": "entity:TeacherReview", "type": "contains", "weight": 0.95},
+    {"source": "file:docs/specs/dse-essay-grading/controlled-domain/aggregate.yaml", "target": "aggregate:Essay", "type": "defines", "weight": 1.0},
+    {"source": "file:docs/specs/dse-essay-grading/machine/machine.yaml", "target": "machine:DSEGradingMachine", "type": "defines", "weight": 1.0},
+    {"source": "file:docs/specs/dse-essay-grading/cross-context/openai.yaml", "target": "cross-context:dse-to-openai", "type": "defines", "weight": 1.0},
+    {"source": "cross-context:question-bank-to-dse", "target": "context:dse-essay-grading", "type": "depends_on", "weight": 0.8},
+    {"source": "cross-context:dse-to-openai", "target": "entity:AIGrade", "type": "implements", "weight": 0.9},
+    {"source": "cross-context:dse-to-openai", "target": "aggregate:Essay", "type": "implements", "weight": 0.7},
+    {"source": "machine:QuestionBankMachine", "target": "event:QuestionCreatedEvent", "type": "publishes", "weight": 0.9},
+    {"source": "machine:QuestionBankMachine", "target": "event:QuestionUpdatedEvent", "type": "publishes", "weight": 0.9},
+    {"source": "machine:QuestionBankMachine", "target": "event:QuestionDeletedEvent", "type": "publishes", "weight": 0.9},
+    {"source": "machine:DSEGradingMachine", "target": "event:EssaySubmittedEvent", "type": "publishes", "weight": 0.9},
+    {"source": "machine:DSEGradingMachine", "target": "event:AIGradingCompletedEvent", "type": "publishes", "weight": 0.9},
+    {"source": "machine:DSEGradingMachine", "target": "event:TeacherReviewCompletedEvent", "type": "publishes", "weight": 0.9},
+    {"source": "cross-context:question-bank-to-dse", "target": "cross-context:dse-to-openai", "type": "sequential", "weight": 0.5}
+  ],
+  "layers": [
+    {
+      "id": "layer:problem-frame",
+      "name": "Problem Frame",
+      "description": "High-level specifications defining bounded contexts and their responsibilities, including operators, machines, and controlled domains",
+      "nodeIds": ["context:question-bank", "context:dse-essay-grading"]
+    },
+    {
+      "id": "layer:domain",
+      "name": "Domain Layer",
+      "description": "Aggregates, entities, and value objects representing the core business domain for both bounded contexts",
+      "nodeIds": ["aggregate:Question", "aggregate:Tag", "aggregate:Essay", "vo:QuestionType", "vo:StandardAnswer", "vo:ScoringCriteria", "vo:EssayStatus", "vo:DimensionScore", "entity:AIGrade", "entity:TeacherReview", "entity:QuestionVersion"]
+    },
+    {
+      "id": "layer:machine",
+      "name": "Machine Layer",
+      "description": "State machines orchestrating domain operations, including use cases and controllers for each bounded context",
+      "nodeIds": ["machine:QuestionBankMachine", "machine:DSEGradingMachine"]
+    },
+    {
+      "id": "layer:cross-context",
+      "name": "Cross-Context Integration",
+      "description": "Anti-corruption layers and cross-context dependencies connecting bounded contexts and external services",
+      "nodeIds": ["cross-context:question-bank-to-dse", "cross-context:dse-to-openai"]
+    },
+    {
+      "id": "layer:concepts",
+      "name": "Design Concepts",
+      "description": "Architectural concepts and patterns realized across the system",
+      "nodeIds": ["concept:hierarchical-tags", "concept:ai-grading-compliance"]
+    },
+    {
+      "id": "layer:events",
+      "name": "Domain Events",
+      "description": "Domain events emitted by aggregates to capture state changes and enable event-driven coordination",
+      "nodeIds": ["event:QuestionCreatedEvent", "event:QuestionUpdatedEvent", "event:QuestionDeletedEvent", "event:EssaySubmittedEvent", "event:AIGradingCompletedEvent", "event:TeacherReviewCompletedEvent"]
+    }
+  ],
+  "tour": [
+    {
+      "order": 1,
+      "title": "Problem Frames: Bounded Contexts",
+      "description": "Start by understanding the two bounded contexts that define the problem space. The Question Bank BC manages question creation and organization for teachers, while the DSE Essay Grading BC handles AI-based essay grading with teacher review workflows. Each context has its own problem frame defining intent, concerns, and cross-context dependencies.",
+      "nodeIds": ["context:question-bank", "context:dse-essay-grading"]
+    },
+    {
+      "order": 2,
+      "title": "Domain Model: Question Aggregate",
+      "description": "The Question aggregate is the core entity in the Question Bank. It enforces invariants like requiring standard answers (to prevent AI hallucination), scoring criteria for explicit point allocation, and loose coupling with Tags. Key value objects include StandardAnswer with format rules and acceptable variants, and ScoringCriteria with partial credit rules.",
+      "nodeIds": ["aggregate:Question", "vo:StandardAnswer", "vo:ScoringCriteria"]
+    },
+    {
+      "order": 3,
+      "title": "Domain Model: Tag Aggregate",
+      "description": "The Tag aggregate implements hierarchical tagging to replace rigid Grade-Subject-Unit hierarchies. Tags support parent-child relationships with max depth of 3, enabling flexible cross-cutting categorization (e.g., '文言文' can tag questions across multiple subjects). Questions maintain loose references to Tags - deleting a Tag does not cascade delete questions.",
+      "nodeIds": ["aggregate:Tag", "concept:hierarchical-tags"]
+    },
+    {
+      "order": 4,
+      "title": "Domain Model: Essay Aggregate",
+      "description": "The Essay aggregate is the core entity in DSE Essay Grading. It manages the essay lifecycle: pending -> ai_graded -> teacher_reviewed (or returned). The aggregate enforces confidence thresholds for AI grading (auto-approve if confidence > 0.85, require teacher review if < 0.6) and tracks AIGrade and TeacherReview as internal entities.",
+      "nodeIds": ["aggregate:Essay"]
+    },
+    {
+      "order": 5,
+      "title": "Design Concept: AI Grading Compliance",
+      "description": "AI Grading Compliance is a critical design concept preventing AI hallucinations. The system mandates that: (1) AI must follow StandardAnswer exactly, checking acceptableVariants before marking wrong, (2) AI must use ScoringCriteria for point allocation, (3) AI must apply format rules (unit, precision, case sensitivity), (4) explicit REQUIRES_HUMAN_REVIEW state when no match found. This reduces hallucination by 90%+.",
+      "nodeIds": ["concept:ai-grading-compliance"]
+    },
+    {
+      "order": 6,
+      "title": "Cross-Context Integration: DSE to OpenAI",
+      "description": "The DSE Essay Grading context integrates with OpenAI via an Anti-Corruption Layer (ACL). The ACL provides OCR (vision model) for handwritten essays and essay grading (chat model) with reliability patterns including circuit breaker (5 failures threshold, 60s reset), retry policy (3 attempts, exponential backoff), and cost control (max 2000 tokens, 80% budget alert).",
+      "nodeIds": ["cross-context:dse-to-openai"]
+    },
+    {
+      "order": 7,
+      "title": "Application Layer: QuestionBankMachine",
+      "description": "The QuestionBankMachine orchestrates question management operations through use cases: CreateQuestionUseCase, UpdateQuestionUseCase (with versioning), QueryQuestionUseCase, and TagUseCase. The machine publishes domain events (QuestionCreatedEvent, QuestionUpdatedEvent, QuestionDeletedEvent, TagCreatedEvent) for downstream consumers.",
+      "nodeIds": ["machine:QuestionBankMachine"]
+    },
+    {
+      "order": 8,
+      "title": "Application Layer: DSEGradingMachine",
+      "description": "The DSEGradingMachine orchestrates the essay grading workflow through GradingUseCase and ReviewUseCase. The essay status state machine flows: pending -> ai_graded -> teacher_reviewed, with 'returned' as a fallback state. The machine publishes EssaySubmittedEvent, AIGradingCompletedEvent, TeacherReviewCompletedEvent, and EssayReturnedEvent.",
+      "nodeIds": ["machine:DSEGradingMachine"]
+    }
+  ]
+}
